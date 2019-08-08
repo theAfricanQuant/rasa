@@ -13,12 +13,7 @@ import rasa
 import rasa.utils.io
 from rasa.constants import DEFAULT_DOMAIN_PATH, LEGACY_DOCS_BASE_URL
 from rasa.core import constants, jobs, training
-from rasa.core.channels.channel import (
-    InputChannel,
-    OutputChannel,
-    UserMessage,
-    CollectingOutputChannel,
-)
+from rasa.core.channels.channel import InputChannel, OutputChannel, UserMessage
 from rasa.core.constants import DEFAULT_REQUEST_TIMEOUT
 from rasa.core.domain import Domain, InvalidDomain
 from rasa.core.exceptions import AgentNotReady
@@ -297,6 +292,7 @@ class Agent(object):
         self.domain = self._create_domain(domain)
         if self.domain:
             self.domain.add_requested_slot()
+            self.domain.add_knowledge_base_slots()
         self.policy_ensemble = self._create_ensemble(policies)
         if not self._is_form_policy_present():
             raise InvalidDomain(
