@@ -125,6 +125,17 @@ async def test_random_seed(component_builder, tmpdir):
 async def test_train_model_on_test_pipelines(
     language, pipeline, component_builder, tmpdir
 ):
+    print('PIPELINES')
+    print(language)
+    print(pipeline)
+    print(component_builder)
+    print(tmpdir)
+    print()
+    os.system("free -h")
+    print()
+    os.system("ps auxww")
+    print()
+
     _config = RasaNLUModelConfig({"pipeline": pipeline, "language": language})
     (trained, _, persisted_path) = await train(
         _config,

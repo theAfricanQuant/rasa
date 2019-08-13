@@ -57,7 +57,8 @@ prepare-tests-files:
 	wget --progress=dot:giga -N -P data/ https://s3-eu-west-1.amazonaws.com/mitie/total_word_feature_extractor.dat
 
 test: clean
-	py.test tests --cov rasa
+	free -h
+	py.test -s tests --cov rasa
 
 doctest: clean
 	cd docs && make doctest
