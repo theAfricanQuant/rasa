@@ -13,10 +13,7 @@ from rasa.utils.io import read_json_file
 def relative_normpath(f: Optional[Text], path: Text) -> Optional[Text]:
     """Return the path of file relative to `path`."""
 
-    if f is not None:
-        return os.path.normpath(os.path.relpath(f, path))
-    else:
-        return None
+    return os.path.normpath(os.path.relpath(f, path)) if f is not None else None
 
 
 def lazyproperty(fn: Callable) -> Any:
@@ -26,7 +23,7 @@ def lazyproperty(fn: Callable) -> Any:
     will happen once, on the first call of the property. All
     succeeding calls will use the value stored in the private property."""
 
-    attr_name = "_lazy_" + fn.__name__
+    attr_name = f"_lazy_{fn.__name__}"
 
     @property
     def _lazyprop(self):
@@ -44,15 +41,12 @@ def list_to_str(l: List[Text], delim: Text = ", ", quote: Text = "'") -> Text:
 def ordered(obj: Any) -> Any:
     if isinstance(obj, dict):
         return sorted((k, ordered(v)) for k, v in obj.items())
-    if isinstance(obj, list):
-        return sorted(ordered(x) for x in obj)
-    else:
-        return obj
+    return sorted(ordered(x) for x in obj) if isinstance(obj, list) else obj
 
 
 def module_path_from_object(o: Any) -> Text:
     """Returns the fully qualified class path of the instantiated object."""
-    return o.__class__.__module__ + "." + o.__class__.__name__
+    return f"{o.__class__.__module__}.{o.__class__.__name__}"
 
 
 def json_to_string(obj: Any, **kwargs: Any) -> Text:
@@ -81,10 +75,12 @@ def build_entity(
 
     Adds additional keyword parameters."""
 
-    entity = {"start": start, "end": end, "value": value, "entity": entity_type}
-
-    entity.update(kwargs)
-    return entity
+    return {
+        "start": start,
+        "end": end,
+        "value": value,
+        "entity": entity_type,
+    } | kwargs
 
 
 def is_model_dir(model_dir: Text) -> bool:
@@ -98,8 +94,7 @@ def is_model_dir(model_dir: Text) -> bool:
         return False
     model_dir, child_dirs, files = dir_tree[0]
     file_extenstions = [os.path.splitext(f)[1] for f in files]
-    only_valid_files = all([ext in allowed_extensions for ext in file_extenstions])
-    return only_valid_files
+    return all(ext in allowed_extensions for ext in file_extenstions)
 
 
 def is_url(resource_name: Text) -> bool:
@@ -115,14 +110,12 @@ def remove_model(model_dir: Text) -> bool:
     """Removes a model directory and all its content."""
     import shutil
 
-    if is_model_dir(model_dir):
-        shutil.rmtree(model_dir)
-        return True
-    else:
+    if not is_model_dir(model_dir):
         raise ValueError(
-            "Cannot remove {}, it seems it is not a model "
-            "directory".format(model_dir)
+            f"Cannot remove {model_dir}, it seems it is not a model directory"
         )
+    shutil.rmtree(model_dir)
+    return True
 
 
 def json_unpickle(file_name: Text) -> Any:

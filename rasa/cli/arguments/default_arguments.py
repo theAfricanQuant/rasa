@@ -16,10 +16,7 @@ def add_model_param(
     add_positional_arg: bool = True,
     default: Optional[Text] = DEFAULT_MODELS_PATH,
 ):
-    help_text = (
-        "Path to a trained {} model. If a directory is specified, it will "
-        "use the latest model in this directory.".format(model_name)
-    )
+    help_text = f"Path to a trained {model_name} model. If a directory is specified, it will use the latest model in this directory."
     parser.add_argument("-m", "--model", type=str, default=default, help=help_text)
     if add_positional_arg:
         parser.add_argument(
@@ -36,7 +33,7 @@ def add_stories_param(
         "--stories",
         type=str,
         default=DEFAULT_DATA_PATH,
-        help="File or folder containing your {} stories.".format(stories_name),
+        help=f"File or folder containing your {stories_name} stories.",
     )
 
 
@@ -100,7 +97,7 @@ def add_data_param(
         "--data",
         type=str,
         default=default,
-        help="Path to the file or directory containing {} data.".format(data_type),
+        help=f"Path to the file or directory containing {data_type} data.",
         required=required,
     )
 

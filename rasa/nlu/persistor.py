@@ -38,7 +38,7 @@ class Persistor(object):
         """Uploads a model persisted in the `target_dir` to cloud storage."""
 
         if not os.path.isdir(model_directory):
-            raise ValueError("Target directory '{}' not found.".format(model_directory))
+            raise ValueError(f"Target directory '{model_directory}' not found.")
 
         file_key, tar_path = self._compress(model_directory, model_name)
         self._persist_tar(file_key, tar_path)
@@ -89,11 +89,10 @@ class Persistor(object):
     def _model_dir_and_model_from_filename(filename: Text) -> Tuple[Text, Text]:
 
         split = filename.split("___")
-        if len(split) > 1:
-            model_name = split[1].replace(".tar.gz", "")
-            return split[0], model_name
-        else:
+        if len(split) <= 1:
             return split[0], ""
+        model_name = split[1].replace(".tar.gz", "")
+        return split[0], model_name
 
     @staticmethod
     def _tar_name(model_name: Text, include_extension: bool = True) -> Text:
@@ -129,7 +128,7 @@ class AWSPersistor(Persistor):
                 for obj in self.bucket.objects.filter()
             ]
         except Exception as e:
-            logger.warning("Failed to list models in AWS. {}".format(e))
+            logger.warning(f"Failed to list models in AWS. {e}")
             return []
 
     def _ensure_bucket_exists(self, bucket_name: Text) -> None:
@@ -183,9 +182,7 @@ class GCSPersistor(Persistor):
                 for b in blob_iterator
             ]
         except Exception as e:
-            logger.warning(
-                "Failed to list models in google cloud storage. {}".format(e)
-            )
+            logger.warning(f"Failed to list models in google cloud storage. {e}")
             return []
 
     def _ensure_bucket_exists(self, bucket_name: Text) -> None:
@@ -244,7 +241,7 @@ class AzurePersistor(Persistor):
                 for b in blob_iterator
             ]
         except Exception as e:
-            logger.warning("Failed to list models azure blob storage. {}".format(e))
+            logger.warning(f"Failed to list models azure blob storage. {e}")
             return []
 
     def _persist_tar(self, file_key: Text, tar_path: Text) -> None:

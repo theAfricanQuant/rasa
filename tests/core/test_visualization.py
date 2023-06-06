@@ -98,4 +98,4 @@ async def test_graph_persistence(default_domain, tmpdir):
         content = graph_file.read()
 
     assert "isClient = true" in content
-    assert "graph = `{}`".format(generated_graph.to_string()) in content
+    assert f"graph = `{generated_graph.to_string()}`" in content

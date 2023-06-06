@@ -47,11 +47,7 @@ class SpacyNLP(Component):
             return spacy.load(spacy_model_name, disable=["parser"])
         except OSError:
             raise InvalidModelError(
-                "Model '{}' is not a linked spaCy model.  "
-                "Please download and/or link a spaCy model, "
-                "e.g. by running:\npython -m spacy download "
-                "en_core_web_md\npython -m spacy link "
-                "en_core_web_md en".format(spacy_model_name)
+                f"Model '{spacy_model_name}' is not a linked spaCy model.  Please download and/or link a spaCy model, e.g. by running:\npython -m spacy download en_core_web_md\npython -m spacy link en_core_web_md en"
             )
 
     @classmethod
@@ -72,9 +68,7 @@ class SpacyNLP(Component):
             spacy_model_name = config.language
             component_config["model"] = config.language
 
-        logger.info(
-            "Trying to load spacy model with name '{}'".format(spacy_model_name)
-        )
+        logger.info(f"Trying to load spacy model with name '{spacy_model_name}'")
 
         nlp = cls.load_model(spacy_model_name)
 
@@ -90,7 +84,7 @@ class SpacyNLP(Component):
         # as the model name if no explicit name is defined
         spacy_model_name = component_meta.get("model", model_metadata.language)
 
-        return cls.name + "-" + spacy_model_name
+        return f"{cls.name}-{spacy_model_name}"
 
     def provide_context(self) -> Dict[Text, Any]:
         return {"spacy_nlp": self.nlp}
@@ -108,9 +102,7 @@ class SpacyNLP(Component):
             for e in training_data.intent_examples
         ]
 
-        docs = [doc for doc in self.nlp.pipe(texts, batch_size=50)]
-
-        return docs
+        return list(self.nlp.pipe(texts, batch_size=50))
 
     def train(
         self, training_data: TrainingData, config: RasaNLUModelConfig, **kwargs: Any
@@ -160,8 +152,5 @@ class SpacyNLP(Component):
             # it did not load the model from disk.
             # In this case `nlp` is an unusable stub.
             raise Exception(
-                "Failed to load spacy language model for "
-                "lang '{}'. Make sure you have downloaded the "
-                "correct model (https://spacy.io/docs/usage/)."
-                "".format(nlp.lang)
+                f"Failed to load spacy language model for lang '{nlp.lang}'. Make sure you have downloaded the correct model (https://spacy.io/docs/usage/)."
             )

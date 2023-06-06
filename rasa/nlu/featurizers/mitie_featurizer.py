@@ -51,8 +51,9 @@ class MitieFeaturizer(Featurizer):
         )
 
     def _mitie_feature_extractor(self, **kwargs):
-        mitie_feature_extractor = kwargs.get("mitie_feature_extractor")
-        if not mitie_feature_extractor:
+        if mitie_feature_extractor := kwargs.get("mitie_feature_extractor"):
+            return mitie_feature_extractor
+        else:
             raise Exception(
                 "Failed to train 'MitieFeaturizer'. "
                 "Missing a proper MITIE feature extractor. "
@@ -60,7 +61,6 @@ class MitieFeaturizer(Featurizer):
                 "the 'MitieNLP' component in the pipeline "
                 "configuration."
             )
-        return mitie_feature_extractor
 
     def features_for_tokens(
         self,
@@ -71,7 +71,4 @@ class MitieFeaturizer(Featurizer):
         vec = np.zeros(self.ndim(feature_extractor))
         for token in tokens:
             vec += feature_extractor.get_feature_vector(token.text)
-        if tokens:
-            return vec / len(tokens)
-        else:
-            return vec
+        return vec / len(tokens) if tokens else vec

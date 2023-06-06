@@ -158,18 +158,13 @@ def _get_valid_config(
 
     if not os.path.exists(config):
         print_error(
-            "The config file '{}' does not exist. Use '--config' to specify a "
-            "valid config file."
-            "".format(config)
+            f"The config file '{config}' does not exist. Use '--config' to specify a valid config file."
         )
         exit(1)
 
-    missing_keys = missing_config_keys(config, mandatory_keys)
-    if missing_keys:
+    if missing_keys := missing_config_keys(config, mandatory_keys):
         print_error(
-            "The config file '{}' is missing mandatory parameters: "
-            "'{}'. Add missing parameters to config file and try again."
-            "".format(config, "', '".join(missing_keys))
+            f"""The config file '{config}' is missing mandatory parameters: '{"', '".join(missing_keys)}'. Add missing parameters to config file and try again."""
         )
         exit(1)
 

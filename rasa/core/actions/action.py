@@ -111,7 +111,7 @@ def actions_from_names(
 def create_bot_utterance(message: Dict[Text, Any]) -> BotUttered:
     """Create BotUttered event from message."""
 
-    bot_message = BotUttered(
+    return BotUttered(
         text=message.pop("text", None),
         data={
             "elements": message.pop("elements", None),
@@ -121,14 +121,13 @@ def create_bot_utterance(message: Dict[Text, Any]) -> BotUttered:
             # to be the attachment if there is no other attachment (the
             # `.get` is intentional - no `pop` as we still need the image`
             # property to set it in the following line)
-            "attachment": message.pop("attachment", None) or message.get("image", None),
+            "attachment": message.pop("attachment", None)
+            or message.get("image", None),
             "image": message.pop("image", None),
             "custom": message.pop("custom", None),
         },
         metadata=message,
     )
-
-    return bot_message
 
 
 class Action(object):
@@ -165,7 +164,7 @@ class Action(object):
         raise NotImplementedError
 
     def __str__(self) -> Text:
-        return "Action('{}')".format(self.name())
+        return f"Action('{self.name()}')"
 
 
 class ActionUtterTemplate(Action):
@@ -184,10 +183,7 @@ class ActionUtterTemplate(Action):
         message = await nlg.generate(self.template_name, tracker, output_channel.name())
         if message is None:
             if not self.silent_fail:
-                logger.error(
-                    "Couldn't create message for template '{}'."
-                    "".format(self.template_name)
-                )
+                logger.error(f"Couldn't create message for template '{self.template_name}'.")
             return []
 
         return [create_bot_utterance(message)]
@@ -196,7 +192,7 @@ class ActionUtterTemplate(Action):
         return self.template_name
 
     def __str__(self) -> Text:
-        return "ActionUtterTemplate('{}')".format(self.name())
+        return f"ActionUtterTemplate('{self.name()}')"
 
 
 class ActionBack(ActionUtterTemplate):
@@ -333,12 +329,7 @@ class RemoteAction(Action):
             validate(result, self.action_response_format_spec())
             return True
         except ValidationError as e:
-            e.message += (
-                ". Failed to validate Action server response from API, "
-                "make sure your response from the Action endpoint is valid. "
-                "For more information about the format visit "
-                "{}/core/actions/".format(DOCS_BASE_URL)
-            )
+            e.message += f". Failed to validate Action server response from API, make sure your response from the Action endpoint is valid. For more information about the format visit {DOCS_BASE_URL}/core/actions/"
             raise e
 
     @staticmethod
@@ -381,20 +372,12 @@ class RemoteAction(Action):
 
         if not self.action_endpoint:
             logger.error(
-                "The model predicted the custom action '{}', "
-                "but you didn't configure an endpoint to "
-                "run this custom action. Please take a look at "
-                "the docs and set an endpoint configuration via the "
-                "--endpoints flag. "
-                "{}/core/actions"
-                "".format(self.name(), DOCS_BASE_URL)
+                f"The model predicted the custom action '{self.name()}', but you didn't configure an endpoint to run this custom action. Please take a look at the docs and set an endpoint configuration via the --endpoints flag. {DOCS_BASE_URL}/core/actions"
             )
             raise Exception("Failed to execute custom action.")
 
         try:
-            logger.debug(
-                "Calling action endpoint to run action '{}'.".format(self.name())
-            )
+            logger.debug(f"Calling action endpoint to run action '{self.name()}'.")
             response = await self.action_endpoint.request(
                 json=json_body, method="post", timeout=DEFAULT_REQUEST_TIMEOUT
             )
@@ -410,21 +393,18 @@ class RemoteAction(Action):
             return bot_messages + evts
 
         except ClientResponseError as e:
-            if e.status == 400:
-                response_data = json.loads(e.text)
-                exception = ActionExecutionRejection(
-                    response_data["action_name"], response_data.get("error")
-                )
-                logger.error(exception.message)
-                raise exception
-            else:
+            if e.status != 400:
                 raise Exception("Failed to execute custom action.") from e
 
+            response_data = json.loads(e.text)
+            exception = ActionExecutionRejection(
+                response_data["action_name"], response_data.get("error")
+            )
+            logger.error(exception.message)
+            raise exception
         except aiohttp.ClientConnectionError as e:
             logger.error(
-                "Failed to run custom action '{}'. Couldn't connect "
-                "to the server at '{}'. Is the server running? "
-                "Error: {}".format(self.name(), self.action_endpoint.url, e)
+                f"Failed to run custom action '{self.name()}'. Couldn't connect to the server at '{self.action_endpoint.url}'. Is the server running? Error: {e}"
             )
             raise Exception("Failed to execute custom action.")
 
@@ -435,11 +415,7 @@ class RemoteAction(Action):
             # noinspection PyUnresolvedReferences
             status = getattr(e, "status", None)
             logger.error(
-                "Failed to run custom action '{}'. Action server "
-                "responded with a non 200 status code of {}. "
-                "Make sure your action server properly runs actions "
-                "and returns a 200 once the action is executed. "
-                "Error: {}".format(self.name(), status, e)
+                f"Failed to run custom action '{self.name()}'. Action server responded with a non 200 status code of {status}. Make sure your action server properly runs actions and returns a 200 once the action is executed. Error: {e}"
             )
             raise Exception("Failed to execute custom action.")
 
@@ -453,9 +429,7 @@ class ActionExecutionRejection(Exception):
 
     def __init__(self, action_name, message=None):
         self.action_name = action_name
-        self.message = message or "Custom action '{}' rejected to run".format(
-            action_name
-        )
+        self.message = message or f"Custom action '{action_name}' rejected to run"
 
     def __str__(self):
         return self.message
@@ -503,11 +477,9 @@ def _revert_affirmation_events(tracker: "DialogueStateTracker") -> List[Event]:
     last_user_event = copy.deepcopy(last_user_event)
     last_user_event.parse_data["intent"]["confidence"] = 1.0
 
-    # User affirms the rephrased intent
-    rephrased_intent = tracker.last_executed_action_has(
+    if rephrased_intent := tracker.last_executed_action_has(
         name=ACTION_DEFAULT_ASK_REPHRASE_NAME, skip=1
-    )
-    if rephrased_intent:
+    ):
         revert_events += _revert_rephrasing_events()
 
     return revert_events + [last_user_event]
@@ -560,13 +532,13 @@ class ActionDefaultAskAffirmation(Action):
         domain: "Domain",
     ) -> List[Event]:
         intent_to_affirm = tracker.latest_message.intent.get("name")
-        affirmation_message = "Did you mean '{}'?".format(intent_to_affirm)
+        affirmation_message = f"Did you mean '{intent_to_affirm}'?"
 
         message = {
             "text": affirmation_message,
             "buttons": [
-                {"title": "Yes", "payload": "/{}".format(intent_to_affirm)},
-                {"title": "No", "payload": "/{}".format(USER_INTENT_OUT_OF_SCOPE)},
+                {"title": "Yes", "payload": f"/{intent_to_affirm}"},
+                {"title": "No", "payload": f"/{USER_INTENT_OUT_OF_SCOPE}"},
             ],
         }
 

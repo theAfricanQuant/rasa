@@ -144,7 +144,7 @@ async def test_generate_training_data_with_cycles(tmpdir, default_domain):
 
     # how many there are depends on the graph which is not created in a
     # deterministic way but should always be 3 or 4
-    assert len(training_trackers) == 3 or len(training_trackers) == 4
+    assert len(training_trackers) in {3, 4}
 
     # if we have 4 trackers, there is going to be one example more for label 4
     num_threes = len(training_trackers) - 1
@@ -197,7 +197,7 @@ async def test_visualize_training_data_graph(tmpdir, default_domain):
 
     # we can't check the exact topology - but this should be enough to ensure
     # the visualisation created a sane graph
-    assert set(G.nodes()) == set(range(-1, 13)) or set(G.nodes()) == set(range(-1, 14))
+    assert set(G.nodes()) in [set(range(-1, 13)), set(range(-1, 14))]
     if set(G.nodes()) == set(range(-1, 13)):
         assert len(G.edges()) == 14
     elif set(G.nodes()) == set(range(-1, 14)):
@@ -216,9 +216,10 @@ async def test_load_multi_file_training_data(default_domain):
     (tr_as_sts, tr_as_acts) = featurizer.training_states_and_actions(
         trackers, default_domain
     )
-    hashed = []
-    for sts, acts in zip(tr_as_sts, tr_as_acts):
-        hashed.append(json.dumps(sts + acts, sort_keys=True))
+    hashed = [
+        json.dumps(sts + acts, sort_keys=True)
+        for sts, acts in zip(tr_as_sts, tr_as_acts)
+    ]
     hashed = sorted(hashed, reverse=True)
 
     data = featurizer.featurize_trackers(trackers, default_domain)
@@ -232,9 +233,10 @@ async def test_load_multi_file_training_data(default_domain):
     (tr_as_sts_mul, tr_as_acts_mul) = featurizer.training_states_and_actions(
         trackers_mul, default_domain
     )
-    hashed_mul = []
-    for sts_mul, acts_mul in zip(tr_as_sts_mul, tr_as_acts_mul):
-        hashed_mul.append(json.dumps(sts_mul + acts_mul, sort_keys=True))
+    hashed_mul = [
+        json.dumps(sts_mul + acts_mul, sort_keys=True)
+        for sts_mul, acts_mul in zip(tr_as_sts_mul, tr_as_acts_mul)
+    ]
     hashed_mul = sorted(hashed_mul, reverse=True)
 
     data_mul = featurizer_mul.featurize_trackers(trackers_mul, default_domain)

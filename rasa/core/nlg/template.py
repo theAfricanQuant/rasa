@@ -33,10 +33,7 @@ class TemplatedNaturalLanguageGenerator(NaturalLanguageGenerator):
                 default_templates.append(template)
 
         # always prefer channel specific templates over default ones
-        if channel_templates:
-            return channel_templates
-        else:
-            return default_templates
+        return channel_templates if channel_templates else default_templates
 
     # noinspection PyUnusedLocal
     def _random_template_for(
@@ -50,11 +47,9 @@ class TemplatedNaturalLanguageGenerator(NaturalLanguageGenerator):
         import numpy as np
 
         if utter_action in self.templates:
-            suitable_templates = self._templates_for_utter_action(
+            if suitable_templates := self._templates_for_utter_action(
                 utter_action, output_channel
-            )
-
-            if suitable_templates:
+            ):
                 return np.random.choice(suitable_templates)
             else:
                 return None
@@ -87,10 +82,7 @@ class TemplatedNaturalLanguageGenerator(NaturalLanguageGenerator):
         # Fetching a random template for the passed template name
         r = copy.deepcopy(self._random_template_for(template_name, output_channel))
         # Filling the slots in the template and returning the template
-        if r is not None:
-            return self._fill_template(r, filled_slots, **kwargs)
-        else:
-            return None
+        return None if r is None else self._fill_template(r, filled_slots, **kwargs)
 
     def _fill_template(
         self,
@@ -100,18 +92,15 @@ class TemplatedNaturalLanguageGenerator(NaturalLanguageGenerator):
     ) -> Dict[Text, Any]:
         """"Combine slot values and key word arguments to fill templates."""
 
-        # Getting the slot values in the template variables
-        template_vars = self._template_variables(filled_slots, kwargs)
-
-        keys_to_interpolate = [
-            "text",
-            "image",
-            "custom",
-            "button",
-            "attachment",
-            "quick_replies",
-        ]
-        if template_vars:
+        if template_vars := self._template_variables(filled_slots, kwargs):
+            keys_to_interpolate = [
+                "text",
+                "image",
+                "custom",
+                "button",
+                "attachment",
+                "quick_replies",
+            ]
             for key in keys_to_interpolate:
                 if key in template:
                     template[key] = interpolate(template[key], template_vars)
@@ -126,7 +115,4 @@ class TemplatedNaturalLanguageGenerator(NaturalLanguageGenerator):
         if filled_slots is None:
             filled_slots = {}
 
-        # Copying the filled slots in the template variables.
-        template_vars = filled_slots.copy()
-        template_vars.update(kwargs)
-        return template_vars
+        return filled_slots | kwargs

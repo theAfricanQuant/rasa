@@ -170,13 +170,11 @@ async def trained_stack_model(
     default_domain_path, default_stack_config, default_nlu_data, default_stories_file
 ):
 
-    trained_stack_model_path = await train_async(
+    return await train_async(
         domain=default_domain_path,
         config=default_stack_config,
         training_files=[default_nlu_data, default_stories_file],
     )
-
-    return trained_stack_model_path
 
 
 @pytest.fixture

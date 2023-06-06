@@ -69,9 +69,7 @@ class Metadata(object):
             return Metadata(data, model_dir)
         except Exception as e:
             abspath = os.path.abspath(os.path.join(model_dir, "metadata.json"))
-            raise InvalidModelError(
-                "Failed to load model metadata from '{}'. {}".format(abspath, e)
-            )
+            raise InvalidModelError(f"Failed to load model metadata from '{abspath}'. {e}")
 
     def __init__(self, metadata: Dict[Text, Any], model_dir: Optional[Text]):
 
@@ -175,9 +173,8 @@ class Trainer(object):
         context = kwargs
 
         for component in self.pipeline:
-            updates = component.provide_context()
-            if updates:
-                context.update(updates)
+            if updates := component.provide_context():
+                context |= updates
 
         # Before the training starts: check that all arguments are provided
         if not self.skip_validation:
@@ -187,7 +184,7 @@ class Trainer(object):
         working_data = copy.deepcopy(data)
 
         for i, component in enumerate(self.pipeline):
-            logger.info("Starting to train component {}".format(component.name))
+            logger.info(f"Starting to train component {component.name}")
             component.prepare_partial_processing(self.pipeline[:i], context)
             updates = component.train(working_data, self.config, **context)
             logger.info("Finished training component.")
@@ -198,7 +195,7 @@ class Trainer(object):
 
     @staticmethod
     def _file_name(index, name):
-        return "component_{}_{}".format(index, name)
+        return f"component_{index}_{name}"
 
     def persist(
         self,
@@ -224,7 +221,7 @@ class Trainer(object):
         rasa.utils.io.create_directory(dir_name)
 
         if self.training_data:
-            metadata.update(self.training_data.persist(dir_name))
+            metadata |= self.training_data.persist(dir_name)
 
         for i, component in enumerate(self.pipeline):
             file_name = self._file_name(i, component.name)
@@ -240,9 +237,7 @@ class Trainer(object):
 
         if persistor is not None:
             persistor.persist(dir_name, model_name)
-        logger.info(
-            "Successfully saved model into '{}'".format(os.path.abspath(dir_name))
-        )
+        logger.info(f"Successfully saved model into '{os.path.abspath(dir_name)}'")
         return dir_name
 
 
@@ -267,12 +262,7 @@ class Interpreter(object):
         model_version = metadata.get("rasa_version", "0.0.0")
         if version.parse(model_version) < version.parse(version_to_check):
             raise UnsupportedModelError(
-                "The model version is to old to be "
-                "loaded by this Rasa NLU instance. "
-                "Either retrain the model, or run with"
-                "an older version. "
-                "Model version: {} Instance version: {}"
-                "".format(model_version, rasa.__version__)
+                f"The model version is to old to be loaded by this Rasa NLU instance. Either retrain the model, or run withan older version. Model version: {model_version} Instance version: {rasa.__version__}"
             )
 
     @staticmethod
@@ -328,15 +318,11 @@ class Interpreter(object):
                 component_meta, model_metadata.model_dir, model_metadata, **context
             )
             try:
-                updates = component.provide_context()
-                if updates:
-                    context.update(updates)
+                if updates := component.provide_context():
+                    context |= updates
                 pipeline.append(component)
             except components.MissingArgumentError as e:
-                raise Exception(
-                    "Failed to initialize component '{}'. "
-                    "{}".format(component.name, e)
-                )
+                raise Exception(f"Failed to initialize component '{component.name}'. {e}")
 
         return Interpreter(pipeline, context, model_metadata)
 

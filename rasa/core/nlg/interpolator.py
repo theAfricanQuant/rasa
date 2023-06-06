@@ -16,24 +16,10 @@ def interpolate_text(template, values):
         try:
             text = re.sub(r"{([^\n{}]+?)}", r"{0[\1]}", template)
             text = text.format(values)
-            if "0[" in text:
-                # regex replaced tag but format did not replace
-                # likely cause would be that tag name was enclosed
-                # in double curly and format func simply escaped it.
-                # we don't want to return {0[SLOTNAME]} thus
-                # restoring original value with { being escaped.
-                return template.format({})
-
-            return text
+            return template.format({}) if "0[" in text else text
         except KeyError as e:
             logger.exception(
-                "Failed to fill utterance template '{}'. "
-                "Tried to replace '{}' but could not find "
-                "a value for it. There is no slot with this "
-                "name nor did you pass the value explicitly "
-                "when calling the template. Return template "
-                "without filling the template. "
-                "".format(template, e.args[0])
+                f"Failed to fill utterance template '{template}'. Tried to replace '{e.args[0]}' but could not find a value for it. There is no slot with this name nor did you pass the value explicitly when calling the template. Return template without filling the template. "
             )
             return template
     return template

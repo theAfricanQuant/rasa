@@ -165,9 +165,7 @@ def test_spacy_featurizer_casing(spacy_nlp):
 
         assert np.allclose(
             vecs, vecs_capitalized, atol=1e-5
-        ), "Vectors are unequal for texts '{}' and '{}'".format(
-            e.text, e.text.capitalize()
-        )
+        ), f"Vectors are unequal for texts '{e.text}' and '{e.text.capitalize()}'"
 
 
 @pytest.mark.parametrize(

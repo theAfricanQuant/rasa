@@ -34,17 +34,13 @@ def create_http_input_channels(
     else:
         all_credentials = {}
 
-    if channel:
-        if len(all_credentials) > 1:
-            logger.info(
-                "Connecting to channel '{}' which was specified by the "
-                "'--connector' argument. Any other channels will be ignored. "
-                "To connect to all given channels, omit the '--connector' "
-                "argument.".format(channel)
-            )
-        return [_create_single_channel(channel, all_credentials.get(channel))]
-    else:
+    if not channel:
         return [_create_single_channel(c, k) for c, k in all_credentials.items()]
+    if len(all_credentials) > 1:
+        logger.info(
+            f"Connecting to channel '{channel}' which was specified by the '--connector' argument. Any other channels will be ignored. To connect to all given channels, omit the '--connector' argument."
+        )
+    return [_create_single_channel(channel, all_credentials.get(channel))]
 
 
 def _create_single_channel(channel, credentials):
@@ -52,19 +48,14 @@ def _create_single_channel(channel, credentials):
 
     if channel in BUILTIN_CHANNELS:
         return BUILTIN_CHANNELS[channel].from_credentials(credentials)
-    else:
         # try to load channel based on class name
-        try:
-            input_channel_class = class_from_module_path(channel)
-            return input_channel_class.from_credentials(credentials)
-        except (AttributeError, ImportError):
-            raise Exception(
-                "Failed to find input channel class for '{}'. Unknown "
-                "input channel. Check your credentials configuration to "
-                "make sure the mentioned channel is not misspelled. "
-                "If you are creating your own channel, make sure it "
-                "is a proper name of a class in a module.".format(channel)
-            )
+    try:
+        input_channel_class = class_from_module_path(channel)
+        return input_channel_class.from_credentials(credentials)
+    except (AttributeError, ImportError):
+        raise Exception(
+            f"Failed to find input channel class for '{channel}'. Unknown input channel. Check your credentials configuration to make sure the mentioned channel is not misspelled. If you are creating your own channel, make sure it is a proper name of a class in a module."
+        )
 
 
 def _create_app_without_api(cors: Optional[Union[Text, List[Text]]] = None):
@@ -205,7 +196,7 @@ async def load_agent_on_start(
             _, nlu_model = get_model_subdirectories(unpacked_model)
             _interpreter = NaturalLanguageInterpreter.create(nlu_model, endpoints.nlu)
     except Exception:
-        logger.debug("Could not load interpreter from '{}'.".format(model_path))
+        logger.debug(f"Could not load interpreter from '{model_path}'.")
         _interpreter = None
 
     _broker = broker.from_endpoint_config(endpoints.event_broker)

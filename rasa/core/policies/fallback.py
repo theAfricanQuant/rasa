@@ -155,10 +155,7 @@ class FallbackPolicy(Policy):
             # if this is the highest confidence in the ensemble,
             # the fallback action will be executed.
             logger.debug(
-                "NLU confidence threshold met, confidence of "
-                "fallback action set to core threshold ({}).".format(
-                    self.core_threshold
-                )
+                f"NLU confidence threshold met, confidence of fallback action set to core threshold ({self.core_threshold})."
             )
             result = self.fallback_scores(domain, self.core_threshold)
 

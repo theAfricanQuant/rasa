@@ -38,24 +38,18 @@ class NaturalLanguageInterpreter(object):
         if not isinstance(obj, str):
             if obj is not None:
                 logger.warning(
-                    "Tried to create NLU interpreter "
-                    "from '{}', which is not possible."
-                    "Using RegexInterpreter instead."
-                    "".format(obj)
+                    f"Tried to create NLU interpreter from '{obj}', which is not possible.Using RegexInterpreter instead."
                 )
             return RegexInterpreter()
 
         if endpoint is None:
-            if not os.path.exists(obj):
-                logger.warning(
-                    "No local NLU model '{}' found. Using RegexInterpreter instead.".format(
-                        obj
-                    )
-                )
-                return RegexInterpreter()
-            else:
+            if os.path.exists(obj):
                 return RasaNLUInterpreter(model_directory=obj)
 
+            logger.warning(
+                f"No local NLU model '{obj}' found. Using RegexInterpreter instead."
+            )
+            return RegexInterpreter()
         return RasaNLUHttpInterpreter(endpoint)
 
 
@@ -72,15 +66,15 @@ class RegexInterpreter(NaturalLanguageInterpreter):
         for k, vs in parsed_entities.items():
             if not isinstance(vs, list):
                 vs = [vs]
-            for value in vs:
-                entities.append(
-                    {
-                        "entity": k,
-                        "start": sidx,
-                        "end": eidx,  # can't be more specific
-                        "value": value,
-                    }
-                )
+            entities.extend(
+                {
+                    "entity": k,
+                    "start": sidx,
+                    "end": eidx,  # can't be more specific
+                    "value": value,
+                }
+                for value in vs
+            )
         return entities
 
     @staticmethod
@@ -97,17 +91,11 @@ class RegexInterpreter(NaturalLanguageInterpreter):
                 return RegexInterpreter._create_entities(parsed_entities, sidx, eidx)
             else:
                 raise Exception(
-                    "Parsed value isn't a json object "
-                    "(instead parser found '{}')"
-                    ".".format(type(parsed_entities))
+                    f"Parsed value isn't a json object (instead parser found '{type(parsed_entities)}')."
                 )
         except Exception as e:
             logger.warning(
-                "Invalid to parse arguments in line "
-                "'{}'. Failed to decode parameters "
-                "as a json object. Make sure the intent "
-                "is followed by a proper json object. "
-                "Error: {}".format(user_input, e)
+                f"Invalid to parse arguments in line '{user_input}'. Failed to decode parameters as a json object. Make sure the intent is followed by a proper json object. Error: {e}"
             )
             return []
 
@@ -120,18 +108,12 @@ class RegexInterpreter(NaturalLanguageInterpreter):
             return float(confidence_str.strip()[1:])
         except Exception as e:
             logger.warning(
-                "Invalid to parse confidence value in line "
-                "'{}'. Make sure the intent confidence is an "
-                "@ followed by a decimal number. "
-                "Error: {}".format(confidence_str, e)
+                f"Invalid to parse confidence value in line '{confidence_str}'. Make sure the intent confidence is an @ followed by a decimal number. Error: {e}"
             )
             return 0.0
 
     def _starts_with_intent_prefix(self, text: Text) -> bool:
-        for c in self.allowed_prefixes():
-            if text.startswith(c):
-                return True
-        return False
+        return any(text.startswith(c) for c in self.allowed_prefixes())
 
     @staticmethod
     def extract_intent_and_entities(
@@ -141,19 +123,17 @@ class RegexInterpreter(NaturalLanguageInterpreter):
 
         prefixes = re.escape(RegexInterpreter.allowed_prefixes())
         # the regex matches "slot{"a": 1}"
-        m = re.search("^[" + prefixes + "]?([^{@]+)(@[0-9.]+)?([{].+)?", user_input)
+        m = re.search(f"^[{prefixes}" + "]?([^{@]+)(@[0-9.]+)?([{].+)?", user_input)
         if m is not None:
-            event_name = m.group(1).strip()
-            confidence = RegexInterpreter._parse_confidence(m.group(2))
+            event_name = m[1].strip()
+            confidence = RegexInterpreter._parse_confidence(m[2])
             entities = RegexInterpreter._parse_parameters(
-                m.group(3), m.start(3), m.end(3), user_input
+                m[3], m.start(3), m.end(3), user_input
             )
 
             return event_name, confidence, entities
         else:
-            logger.warning(
-                "Failed to parse intent end entities from '{}'. ".format(user_input)
-            )
+            logger.warning(f"Failed to parse intent end entities from '{user_input}'. ")
             return None, 0.0, []
 
     async def parse(
@@ -217,17 +197,16 @@ class RasaNLUHttpInterpreter(NaturalLanguageInterpreter):
 
         if not self.endpoint:
             logger.error(
-                "Failed to parse text '{}' using rasa NLU over http. "
-                "No rasa NLU server specified!".format(text)
+                f"Failed to parse text '{text}' using rasa NLU over http. No rasa NLU server specified!"
             )
             return None
 
         params = {"token": self.endpoint.token, "text": text, "message_id": message_id}
 
         if self.endpoint.url.endswith("/"):
-            url = self.endpoint.url + "model/parse"
+            url = f"{self.endpoint.url}model/parse"
         else:
-            url = self.endpoint.url + "/model/parse"
+            url = f"{self.endpoint.url}/model/parse"
 
         # noinspection PyBroadException
         try:
@@ -235,16 +214,12 @@ class RasaNLUHttpInterpreter(NaturalLanguageInterpreter):
                 async with session.post(url, json=params) as resp:
                     if resp.status == 200:
                         return await resp.json()
-                    else:
-                        logger.error(
-                            "Failed to parse text '{}' using rasa NLU over "
-                            "http. Error: {}".format(text, await resp.text())
-                        )
-                        return None
+                    logger.error(
+                        f"Failed to parse text '{text}' using rasa NLU over http. Error: {await resp.text()}"
+                    )
+                    return None
         except Exception:
-            logger.exception(
-                "Failed to parse text '{}' using rasa NLU over http.".format(text)
-            )
+            logger.exception(f"Failed to parse text '{text}' using rasa NLU over http.")
             return None
 
 
@@ -276,9 +251,7 @@ class RasaNLUInterpreter(NaturalLanguageInterpreter):
 
         if self.lazy_init and self.interpreter is None:
             self._load_interpreter()
-        result = self.interpreter.parse(text, message_id)
-
-        return result
+        return self.interpreter.parse(text, message_id)
 
     def _load_interpreter(self):
         from rasa.nlu.model import Interpreter

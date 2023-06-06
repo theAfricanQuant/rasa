@@ -41,11 +41,11 @@ def validate_requirements(component_names: List[Text]) -> None:
         # if available, use the development file to figure out the correct
         # version numbers for each requirement
         raise Exception(
-            "Not all required importable packages are installed. "
-            + "To use this pipeline, you need to install the "
-            "missing dependencies. "
-            + "Please install the package(s) that contain the module(s): {}".format(
-                ", ".join(failed_imports)
+            (
+                "Not all required importable packages are installed. "
+                + "To use this pipeline, you need to install the "
+                "missing dependencies. "
+                + f'Please install the package(s) that contain the module(s): {", ".join(failed_imports)}'
             )
         )
 
@@ -59,7 +59,7 @@ def validate_arguments(
     arguments are present to train the pipeline."""
 
     # Ensure the pipeline is not empty
-    if not allow_empty_pipeline and len(pipeline) == 0:
+    if not allow_empty_pipeline and not pipeline:
         raise ValueError(
             "Can not train an empty pipeline. "
             "Make sure to specify a proper pipeline in "
@@ -74,9 +74,7 @@ def validate_arguments(
         for r in component.requires:
             if r not in provided_properties:
                 raise Exception(
-                    "Failed to validate at component "
-                    "'{}'. Missing property: '{}'"
-                    "".format(component.name, r)
+                    f"Failed to validate at component '{component.name}'. Missing property: '{r}'"
                 )
         provided_properties.update(component.provides)
 
@@ -112,9 +110,7 @@ class UnsupportedLanguageError(Exception):
         super(UnsupportedLanguageError, self).__init__(component, language)
 
     def __str__(self) -> Text:
-        return "component {} does not support language {}".format(
-            self.component, self.language
-        )
+        return f"component {self.component} does not support language {self.language}"
 
 
 class ComponentMetaclass(type):
@@ -226,10 +222,7 @@ class Component(object, metaclass=ComponentMetaclass):
         created by :meth:`components.Component.create`
         calls to components previous
         to this one."""
-        if cached_component:
-            return cached_component
-        else:
-            return cls(meta)
+        return cached_component if cached_component else cls(meta)
 
     @classmethod
     def create(
@@ -400,10 +393,7 @@ class ComponentBuilder(object):
 
         if cache_key is not None and self.use_cache:
             self.component_cache[cache_key] = component
-            logger.info(
-                "Added '{}' to component cache. Key '{}'."
-                "".format(component.name, cache_key)
-            )
+            logger.info(f"Added '{component.name}' to component cache. Key '{cache_key}'.")
 
     def load_component(
         self,
@@ -443,8 +433,7 @@ class ComponentBuilder(object):
             return component
         except MissingArgumentError as e:  # pragma: no cover
             raise Exception(
-                "Failed to load component from file `{}`. "
-                "{}".format(component_meta.get("file"), e)
+                f'Failed to load component from file `{component_meta.get("file")}`. {e}'
             )
 
     def create_component(
@@ -465,6 +454,5 @@ class ComponentBuilder(object):
             return component
         except MissingArgumentError as e:  # pragma: no cover
             raise Exception(
-                "Failed to create component `{}`. "
-                "{}".format(component_config["name"], e)
+                f'Failed to create component `{component_config["name"]}`. {e}'
             )

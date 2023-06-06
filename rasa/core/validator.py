@@ -35,27 +35,20 @@ class Validator(object):
     def verify_intents(self):
         """Compares list of intents in domain with intents in NLU training data."""
 
-        domain_intents = set()
-        nlu_data_intents = set()
-
-        for intent in self.domain.intent_properties:
-            domain_intents.add(intent)
-
-        for intent in self.intents.intent_examples:
-            nlu_data_intents.add(intent.data["intent"])
-
+        domain_intents = set(self.domain.intent_properties)
+        nlu_data_intents = {
+            intent.data["intent"] for intent in self.intents.intent_examples
+        }
         for intent in domain_intents:
             if intent not in nlu_data_intents:
                 logger.warning(
-                    "The intent '{}' is listed in the domain file, but "
-                    "is not found in the NLU training data.".format(intent)
+                    f"The intent '{intent}' is listed in the domain file, but is not found in the NLU training data."
                 )
 
         for intent in nlu_data_intents:
             if intent not in domain_intents:
                 logger.error(
-                    "The intent '{}' is in the NLU training data, but "
-                    "is not listed in the domain.".format(intent)
+                    f"The intent '{intent}' is in the NLU training data, but is not listed in the domain."
                 )
 
         return domain_intents
@@ -76,41 +69,32 @@ class Validator(object):
                     stories_intents.add(intent)
                     if intent not in domain_intents:
                         logger.error(
-                            "The intent '{}' is used in stories, but is not "
-                            "listed in the domain file.".format(intent)
+                            f"The intent '{intent}' is used in stories, but is not listed in the domain file."
                         )
 
         for intent in domain_intents:
             if intent not in stories_intents:
-                logger.warning(
-                    "The intent '{}' is not used in any story.".format(intent)
-                )
+                logger.warning(f"The intent '{intent}' is not used in any story.")
 
     def verify_utterances(self):
         """Compares list of utterances in actions with utterances in templates."""
 
         actions = self.domain.action_names
-        utterance_templates = set()
         valid_utterances = set()
 
-        for utterance in self.domain.templates:
-            utterance_templates.add(utterance)
-
+        utterance_templates = set(self.domain.templates)
         for utterance in utterance_templates:
             if utterance in actions:
                 valid_utterances.add(utterance)
             else:
                 logger.error(
-                    "The utterance '{}' is not listed under 'actions' in the "
-                    "domain file.".format(utterance)
+                    f"The utterance '{utterance}' is not listed under 'actions' in the domain file."
                 )
 
         for action in actions:
             if action.startswith(UTTER_PREFIX):
                 if action not in utterance_templates:
-                    logger.error(
-                        "There is no template for utterance '{}'.".format(action)
-                    )
+                    logger.error(f"There is no template for utterance '{action}'.")
 
         return valid_utterances
 
@@ -134,16 +118,13 @@ class Validator(object):
                         and utterance not in stories_utterances
                     ):
                         logger.error(
-                            "The utterance '{}' is used in stories, but is not a "
-                            "valid utterance.".format(utterance)
+                            f"The utterance '{utterance}' is used in stories, but is not a valid utterance."
                         )
                     stories_utterances.add(utterance)
 
         for utterance in valid_utterances:
             if utterance not in stories_utterances:
-                logger.warning(
-                    "The utterance '{}' is not used in any story.".format(utterance)
-                )
+                logger.warning(f"The utterance '{utterance}' is not used in any story.")
 
     def verify_all(self):
         """Runs all the validations on intents and utterances."""

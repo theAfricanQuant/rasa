@@ -60,9 +60,9 @@ async def load_from_server(agent: "Agent", model_server: EndpointConfig) -> "Age
     # a model.
     await _update_model_from_server(model_server, agent)
 
-    wait_time_between_pulls = model_server.kwargs.get("wait_time_between_pulls", 100)
-
-    if wait_time_between_pulls:
+    if wait_time_between_pulls := model_server.kwargs.get(
+        "wait_time_between_pulls", 100
+    ):
         # continuously pull the model every `wait_time_between_pulls` seconds
         await schedule_model_pulling(model_server, int(wait_time_between_pulls), agent)
 
@@ -74,7 +74,7 @@ def _load_and_set_updated_model(
 ):
     """Load the persisted model into memory and set the model on the agent."""
 
-    logger.debug("Found new model with fingerprint {}. Loading...".format(fingerprint))
+    logger.debug(f"Found new model with fingerprint {fingerprint}. Loading...")
 
     core_path, nlu_path = get_model_subdirectories(model_directory)
 
@@ -93,9 +93,7 @@ def _load_and_set_updated_model(
         domain = Domain.load(domain_path)
 
     try:
-        policy_ensemble = None
-        if core_path:
-            policy_ensemble = PolicyEnsemble.load(core_path)
+        policy_ensemble = PolicyEnsemble.load(core_path) if core_path else None
         agent.update_model(
             domain, policy_ensemble, fingerprint, interpreter, model_directory
         )
@@ -122,7 +120,7 @@ async def _update_model_from_server(
         model_directory, new_model_fingerprint = model_directory_and_fingerprint
         _load_and_set_updated_model(agent, model_directory, new_model_fingerprint)
     else:
-        logger.debug("No new model found at URL {}".format(model_server.url))
+        logger.debug(f"No new model found at URL {model_server.url}")
 
 
 async def _pull_model_and_fingerprint(
@@ -136,26 +134,23 @@ async def _pull_model_and_fingerprint(
 
     headers = {"If-None-Match": fingerprint}
 
-    logger.debug("Requesting model from server {}...".format(model_server.url))
+    logger.debug(f"Requesting model from server {model_server.url}...")
 
     async with model_server.session() as session:
         try:
             set_log_level()
             params = model_server.combine_parameters()
             async with session.request(
-                "GET",
-                model_server.url,
-                timeout=DEFAULT_REQUEST_TIMEOUT,
-                headers=headers,
-                params=params,
-            ) as resp:
+                            "GET",
+                            model_server.url,
+                            timeout=DEFAULT_REQUEST_TIMEOUT,
+                            headers=headers,
+                            params=params,
+                        ) as resp:
 
                 if resp.status in [204, 304]:
                     logger.debug(
-                        "Model server returned {} status code, "
-                        "indicating that no new model is available. "
-                        "Current fingerprint: {}"
-                        "".format(resp.status, fingerprint)
+                        f"Model server returned {resp.status} status code, indicating that no new model is available. Current fingerprint: {fingerprint}"
                     )
                     return None
                 elif resp.status == 404:
@@ -167,17 +162,13 @@ async def _pull_model_and_fingerprint(
                     return None
                 elif resp.status != 200:
                     logger.debug(
-                        "Tried to fetch model from server, but server response "
-                        "status code is {}. We'll retry later..."
-                        "".format(resp.status)
+                        f"Tried to fetch model from server, but server response status code is {resp.status}. We'll retry later..."
                     )
                     return None
 
                 model_directory = tempfile.mkdtemp()
                 rasa.utils.io.unarchive(await resp.read(), model_directory)
-                logger.debug(
-                    "Unzipped model to '{}'".format(os.path.abspath(model_directory))
-                )
+                logger.debug(f"Unzipped model to '{os.path.abspath(model_directory)}'")
 
                 # get the new fingerprint
                 new_fingerprint = resp.headers.get("ETag")
@@ -186,9 +177,7 @@ async def _pull_model_and_fingerprint(
 
         except aiohttp.ClientError as e:
             logger.debug(
-                "Tried to fetch model from server, but "
-                "couldn't reach server. We'll retry later... "
-                "Error: {}.".format(e)
+                f"Tried to fetch model from server, but couldn't reach server. We'll retry later... Error: {e}."
             )
             return None
 
@@ -270,7 +259,7 @@ async def load_agent(
             return None
 
     except Exception as e:
-        logger.error("Could not load model due to {}.".format(e))
+        logger.error(f"Could not load model due to {e}.")
         raise
 
 
@@ -356,16 +345,12 @@ class Agent(object):
             if not model_path:
                 raise ModelNotFound("No path specified.")
             elif not os.path.exists(model_path):
-                raise ModelNotFound("No file or directory at '{}'.".format(model_path))
+                raise ModelNotFound(f"No file or directory at '{model_path}'.")
             elif os.path.isfile(model_path):
                 model_path = get_model(model_path)
         except ModelNotFound:
             raise ValueError(
-                "You are trying to load a MODEL from '{}', which is not possible. \n"
-                "The model path should be a 'tar.gz' file or a directory "
-                "containing the various model files in the sub-directories 'core' "
-                "and 'nlu'. \n\nIf you want to load training data instead of "
-                "a model, use `agent.load_data(...)` instead.".format(model_path)
+                f"You are trying to load a MODEL from '{model_path}', which is not possible. \nThe model path should be a 'tar.gz' file or a directory containing the various model files in the sub-directories 'core' and 'nlu'. \n\nIf you want to load training data instead of a model, use `agent.load_data(...)` instead."
             )
 
         core_model, nlu_model = get_model_subdirectories(model_path)
@@ -645,13 +630,7 @@ class Agent(object):
         elif unique_last_num_states < max_history:
             # possibility of data loss
             logger.warning(
-                "unique_last_num_states={} but "
-                "maximum max_history={}."
-                "Possibility of data loss. "
-                "It is recommended to set "
-                "unique_last_num_states to "
-                "at least maximum max_history."
-                "".format(unique_last_num_states, max_history)
+                f"unique_last_num_states={unique_last_num_states} but maximum max_history={max_history}.Possibility of data loss. It is recommended to set unique_last_num_states to at least maximum max_history."
             )
 
         return await training.load_data(
@@ -682,11 +661,7 @@ class Agent(object):
         # deprecation tests
         if kwargs.get("featurizer"):
             raise Exception(
-                "Passing `featurizer` "
-                "to `agent.train(...)` is not supported anymore. "
-                "Pass appropriate featurizer directly "
-                "to the policy configuration instead. More info "
-                "{}/core/migrations.html".format(LEGACY_DOCS_BASE_URL)
+                f"Passing `featurizer` to `agent.train(...)` is not supported anymore. Pass appropriate featurizer directly to the policy configuration instead. More info {LEGACY_DOCS_BASE_URL}/core/migrations.html"
             )
         if (
             kwargs.get("epochs")
@@ -694,11 +669,7 @@ class Agent(object):
             or kwargs.get("batch_size")
         ):
             raise Exception(
-                "Passing policy configuration parameters "
-                "to `agent.train(...)` is not supported "
-                "anymore. Specify parameters directly in the "
-                "policy configuration instead. More info "
-                "{}/core/migrations.html".format(LEGACY_DOCS_BASE_URL)
+                f"Passing policy configuration parameters to `agent.train(...)` is not supported anymore. Specify parameters directly in the policy configuration instead. More info {LEGACY_DOCS_BASE_URL}/core/migrations.html"
             )
 
         if isinstance(training_trackers, str):
@@ -711,7 +682,7 @@ class Agent(object):
                 "to `agent.train(data)`."
             )
 
-        logger.debug("Agent trainer got kwargs: {}".format(kwargs))
+        logger.debug(f"Agent trainer got kwargs: {kwargs}")
 
         self.policy_ensemble.train(training_trackers, self.domain, **kwargs)
         self._set_fingerprint()
@@ -750,10 +721,7 @@ class Agent(object):
 
     def _set_fingerprint(self, fingerprint: Optional[Text] = None) -> None:
 
-        if fingerprint:
-            self.fingerprint = fingerprint
-        else:
-            self.fingerprint = uuid.uuid4().hex
+        self.fingerprint = fingerprint if fingerprint else uuid.uuid4().hex
 
     @staticmethod
     def _clear_model_directory(model_path: Text) -> None:
@@ -770,16 +738,12 @@ class Agent(object):
         # check if there were a model before
         if os.path.exists(domain_spec_path):
             logger.info(
-                "Model directory {} exists and contains old "
-                "model files. All files will be overwritten."
-                "".format(model_path)
+                f"Model directory {model_path} exists and contains old model files. All files will be overwritten."
             )
             shutil.rmtree(model_path)
         else:
             logger.debug(
-                "Model directory {} exists, but does not contain "
-                "all old model files. Some files might be "
-                "overwritten.".format(model_path)
+                f"Model directory {model_path} exists, but does not contain all old model files. Some files might be overwritten."
             )
 
     def persist(self, model_path: Text, dump_flattened_stories: bool = False) -> None:
@@ -797,7 +761,7 @@ class Agent(object):
         self.domain.persist(os.path.join(model_path, DEFAULT_DOMAIN_PATH))
         self.domain.persist_specification(model_path)
 
-        logger.info("Persisted model to '{}'".format(os.path.abspath(model_path)))
+        logger.info(f"Persisted model to '{os.path.abspath(model_path)}'")
 
     async def visualize(
         self,
@@ -862,20 +826,17 @@ class Agent(object):
             return domain
         elif domain is not None:
             raise ValueError(
-                "Invalid param `domain`. Expected a path to a domain "
-                "specification or a domain instance. But got "
-                "type '{}' with value '{}'".format(type(domain), domain)
+                f"Invalid param `domain`. Expected a path to a domain specification or a domain instance. But got type '{type(domain)}' with value '{domain}'"
             )
 
     @staticmethod
     def create_tracker_store(
         store: Optional[TrackerStore], domain: Domain
     ) -> TrackerStore:
-        if store is not None:
-            store.domain = domain
-            return store
-        else:
+        if store is None:
             return InMemoryTrackerStore(domain)
+        store.domain = domain
+        return store
 
     @staticmethod
     def _create_ensemble(
@@ -890,9 +851,7 @@ class Agent(object):
         else:
             passed_type = type(policies).__name__
             raise ValueError(
-                "Invalid param `policies`. Passed object is "
-                "of type '{}', but should be policy, an array of "
-                "policies, or a policy ensemble".format(passed_type)
+                f"Invalid param `policies`. Passed object is of type '{passed_type}', but should be policy, an array of policies, or a policy ensemble"
             )
 
     @staticmethod
@@ -911,7 +870,7 @@ class Agent(object):
             model_archive = get_latest_model(model_path)
 
         if model_archive is None:
-            logger.warning("Could not load local model in '{}'".format(model_path))
+            logger.warning(f"Could not load local model in '{model_path}'")
             return Agent()
 
         working_directory = tempfile.mkdtemp()

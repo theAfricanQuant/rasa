@@ -121,9 +121,7 @@ class WronglyPredictedAction(ActionExecuted):
         )
 
     def as_story_string(self):
-        return "{}   <!-- predicted: {} -->".format(
-            self.action_name, self.predicted_action
-        )
+        return f"{self.action_name}   <!-- predicted: {self.predicted_action} -->"
 
 
 class EndToEndUserUtterance(UserUttered):
@@ -171,12 +169,7 @@ class WronglyClassifiedUserUtterance(UserUttered):
         predicted_message = md_format_message(
             self.text, self.predicted_intent, self.predicted_entities
         )
-        return ("{}: {}   <!-- predicted: {}: {} -->").format(
-            self.intent.get("name"),
-            correct_message,
-            self.predicted_intent,
-            predicted_message,
-        )
+        return f'{self.intent.get("name")}: {correct_message}   <!-- predicted: {self.predicted_intent}: {predicted_message} -->'
 
 
 async def _generate_trackers(resource_name, agent, max_stories=None, use_e2e=False):
@@ -250,8 +243,7 @@ def _collect_user_uttered_predictions(
         )
         if fail_on_prediction_errors:
             raise ValueError(
-                "NLU model predicted a wrong intent. Failed Story:"
-                " \n\n{}".format(partial_tracker.export_stories())
+                f"NLU model predicted a wrong intent. Failed Story: \n\n{partial_tracker.export_stories()}"
             )
     else:
         end_to_end_user_utterance = EndToEndUserUtterance(
@@ -311,10 +303,7 @@ def _collect_action_executed_predictions(
             )
         )
         if fail_on_prediction_errors:
-            error_msg = (
-                "Model predicted a wrong action. Failed Story: "
-                "\n\n{}".format(partial_tracker.export_stories())
-            )
+            error_msg = f"Model predicted a wrong action. Failed Story: \n\n{partial_tracker.export_stories()}"
             if FormPolicy.__name__ in policy:
                 error_msg += (
                     "FormAction is not run during "
@@ -402,7 +391,7 @@ def collect_story_predictions(
     correct_dialogues = []
     number_of_stories = len(completed_trackers)
 
-    logger.info("Evaluating {} stories\nProgress:".format(number_of_stories))
+    logger.info(f"Evaluating {number_of_stories} stories\nProgress:")
 
     action_list = []
 
@@ -532,19 +521,17 @@ def log_evaluation_table(
     accuracy,
     in_training_data_fraction,
     include_report=True,
-):  # pragma: no cover
+):    # pragma: no cover
     """Log the sklearn evaluation metrics."""
-    logger.info("Evaluation Results on {} level:".format(name))
-    logger.info(
-        "\tCorrect:          {} / {}".format(int(len(golds) * accuracy), len(golds))
-    )
+    logger.info(f"Evaluation Results on {name} level:")
+    logger.info(f"\tCorrect:          {int(len(golds) * accuracy)} / {len(golds)}")
     logger.info("\tF1-Score:         {:.3f}".format(f1))
     logger.info("\tPrecision:        {:.3f}".format(precision))
     logger.info("\tAccuracy:         {:.3f}".format(accuracy))
     logger.info("\tIn-data fraction: {:.3g}".format(in_training_data_fraction))
 
     if include_report:
-        logger.info("\tClassification report: \n{}".format(report))
+        logger.info(f"\tClassification report: \n{report}")
 
 
 def plot_story_evaluation(
@@ -583,7 +570,7 @@ def plot_story_evaluation(
     )
 
     fig = plt.gcf()
-    fig.set_size_inches(int(20), int(20))
+    fig.set_size_inches(20, 20)
     fig.savefig(os.path.join(out_directory, "story_confmat.pdf"), bbox_inches="tight")
 
 
@@ -633,7 +620,7 @@ async def compare_models(models: List[Text], stories_file: Text, output: Text) -
 async def _evaluate_core_model(model: Text, stories_file: Text) -> int:
     from rasa.core.agent import Agent
 
-    logger.info("Evaluating model '{}'".format(model))
+    logger.info(f"Evaluating model '{model}'")
 
     agent = Agent.load(model)
     completed_trackers = await _generate_trackers(stories_file, agent)
@@ -717,7 +704,7 @@ def _plot_curve(
 
     plt.savefig(graph_path, format="pdf")
 
-    logger.info("Comparison graph saved to '{}'.".format(graph_path))
+    logger.info(f"Comparison graph saved to '{graph_path}'.")
 
 
 if __name__ == "__main__":

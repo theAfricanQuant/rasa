@@ -209,9 +209,9 @@ class EmbeddingIntentClassifier(Component):
     def _create_intent_dict(training_data: "TrainingData") -> Dict[Text, int]:
         """Create intent dictionary"""
 
-        distinct_intents = set(
-            [example.get("intent") for example in training_data.intent_examples]
-        )
+        distinct_intents = {
+            example.get("intent") for example in training_data.intent_examples
+        }
         return {intent: idx for idx, intent in enumerate(sorted(distinct_intents))}
 
     @staticmethod
@@ -220,9 +220,11 @@ class EmbeddingIntentClassifier(Component):
     ) -> Dict[Text, int]:
         """Create intent token dictionary"""
 
-        distinct_tokens = set(
-            [token for intent in intents for token in intent.split(intent_split_symbol)]
-        )
+        distinct_tokens = {
+            token
+            for intent in intents
+            for token in intent.split(intent_split_symbol)
+        }
         return {token: idx for idx, token in enumerate(sorted(distinct_tokens))}
 
     def _create_encoded_intents(self, intent_dict: Dict[Text, int]) -> np.ndarray:
@@ -231,19 +233,18 @@ class EmbeddingIntentClassifier(Component):
         If intent_tokenization_flag is off, returns identity matrix.
         """
 
-        if self.intent_tokenization_flag:
-            intent_token_dict = self._create_intent_token_dict(
-                list(intent_dict.keys()), self.intent_split_symbol
-            )
-
-            encoded_all_intents = np.zeros((len(intent_dict), len(intent_token_dict)))
-            for key, idx in intent_dict.items():
-                for t in key.split(self.intent_split_symbol):
-                    encoded_all_intents[idx, intent_token_dict[t]] = 1
-
-            return encoded_all_intents
-        else:
+        if not self.intent_tokenization_flag:
             return np.eye(len(intent_dict))
+        intent_token_dict = self._create_intent_token_dict(
+            list(intent_dict.keys()), self.intent_split_symbol
+        )
+
+        encoded_all_intents = np.zeros((len(intent_dict), len(intent_token_dict)))
+        for key, idx in intent_dict.items():
+            for t in key.split(self.intent_split_symbol):
+                encoded_all_intents[idx, intent_token_dict[t]] = 1
+
+        return encoded_all_intents
 
     # noinspection PyPep8Naming
     def _create_all_Y(self, size: int) -> np.ndarray:
@@ -287,7 +288,7 @@ class EmbeddingIntentClassifier(Component):
                 units=layer_size,
                 activation=tf.nn.relu,
                 kernel_regularizer=reg,
-                name="hidden_layer_{}_{}".format(name, i),
+                name=f"hidden_layer_{name}_{i}",
             )
             x = tf.layers.dropout(x, rate=self.droprate, training=is_training)
 
@@ -295,7 +296,7 @@ class EmbeddingIntentClassifier(Component):
             inputs=x,
             units=self.embed_dim,
             kernel_regularizer=reg,
-            name="embed_layer_{}".format(name),
+            name=f"embed_layer_{name}",
         )
         return x
 
@@ -325,18 +326,14 @@ class EmbeddingIntentClassifier(Component):
             a = tf.nn.l2_normalize(a, -1)
             b = tf.nn.l2_normalize(b, -1)
 
-        if self.similarity_type in {"cosine", "inner"}:
-            sim = tf.reduce_sum(tf.expand_dims(a, 1) * b, -1)
-            sim_emb = tf.reduce_sum(b[:, 0:1, :] * b[:, 1:, :], -1)
-
-            return sim, sim_emb
-
-        else:
+        if self.similarity_type not in {"cosine", "inner"}:
             raise ValueError(
-                "Wrong similarity type {}, "
-                "should be 'cosine' or 'inner'"
-                "".format(self.similarity_type)
+                f"Wrong similarity type {self.similarity_type}, should be 'cosine' or 'inner'"
             )
+        sim = tf.reduce_sum(tf.expand_dims(a, 1) * b, -1)
+        sim_emb = tf.reduce_sum(b[:, 0:1, :] * b[:, 1:, :], -1)
+
+        return sim, sim_emb
 
     def _tf_loss(self, sim: "Tensor", sim_emb: "Tensor") -> "Tensor":
         """Define loss"""
@@ -424,8 +421,7 @@ class EmbeddingIntentClassifier(Component):
 
         if self.evaluate_on_num_examples:
             logger.info(
-                "Accuracy is updated every {} epochs"
-                "".format(self.evaluate_every_num_epochs)
+                f"Accuracy is updated every {self.evaluate_every_num_epochs} epochs"
             )
 
         pbar = tqdm(range(self.epochs), desc="Epochs", disable=is_logging_disabled())
@@ -499,8 +495,7 @@ class EmbeddingIntentClassifier(Component):
             feed_dict={self.a_in: X[ids], self.b_in: all_Y, is_training: False},
         )
 
-        train_acc = np.mean(np.argmax(train_sim, -1) == intents_for_X[ids])
-        return train_acc
+        return np.mean(np.argmax(train_sim, -1) == intents_for_X[ids])
 
     def train(
         self,
@@ -529,10 +524,7 @@ class EmbeddingIntentClassifier(Component):
 
         # check if number of negatives is less than number of intents
         logger.debug(
-            "Check if num_neg {} is smaller than "
-            "number of intents {}, "
-            "else set num_neg to the number of intents - 1"
-            "".format(self.num_neg, self.encoded_all_intents.shape[0])
+            f"Check if num_neg {self.num_neg} is smaller than number of intents {self.encoded_all_intents.shape[0]}, else set num_neg to the number of intents - 1"
         )
         self.num_neg = min(self.num_neg, self.encoded_all_intents.shape[0] - 1)
 
@@ -639,7 +631,7 @@ class EmbeddingIntentClassifier(Component):
         if self.session is None:
             return {"file": None}
 
-        checkpoint = os.path.join(model_dir, file_name + ".ckpt")
+        checkpoint = os.path.join(model_dir, f"{file_name}.ckpt")
 
         try:
             os.makedirs(os.path.dirname(checkpoint))
@@ -667,13 +659,9 @@ class EmbeddingIntentClassifier(Component):
             saver = tf.train.Saver()
             saver.save(self.session, checkpoint)
 
-        with io.open(
-            os.path.join(model_dir, file_name + "_inv_intent_dict.pkl"), "wb"
-        ) as f:
+        with io.open(os.path.join(model_dir, f"{file_name}_inv_intent_dict.pkl"), "wb") as f:
             pickle.dump(self.inv_intent_dict, f)
-        with io.open(
-            os.path.join(model_dir, file_name + "_encoded_all_intents.pkl"), "wb"
-        ) as f:
+        with io.open(os.path.join(model_dir, f"{file_name}_encoded_all_intents.pkl"), "wb") as f:
             pickle.dump(self.encoded_all_intents, f)
 
         return {"file": file_name}
@@ -690,11 +678,11 @@ class EmbeddingIntentClassifier(Component):
 
         if model_dir and meta.get("file"):
             file_name = meta.get("file")
-            checkpoint = os.path.join(model_dir, file_name + ".ckpt")
+            checkpoint = os.path.join(model_dir, f"{file_name}.ckpt")
             graph = tf.Graph()
             with graph.as_default():
                 sess = tf.Session()
-                saver = tf.train.import_meta_graph(checkpoint + ".meta")
+                saver = tf.train.import_meta_graph(f"{checkpoint}.meta")
 
                 saver.restore(sess, checkpoint)
 
@@ -706,13 +694,9 @@ class EmbeddingIntentClassifier(Component):
                 word_embed = tf.get_collection("word_embed")[0]
                 intent_embed = tf.get_collection("intent_embed")[0]
 
-            with io.open(
-                os.path.join(model_dir, file_name + "_inv_intent_dict.pkl"), "rb"
-            ) as f:
+            with io.open(os.path.join(model_dir, f"{file_name}_inv_intent_dict.pkl"), "rb") as f:
                 inv_intent_dict = pickle.load(f)
-            with io.open(
-                os.path.join(model_dir, file_name + "_encoded_all_intents.pkl"), "rb"
-            ) as f:
+            with io.open(os.path.join(model_dir, f"{file_name}_encoded_all_intents.pkl"), "rb") as f:
                 encoded_all_intents = pickle.load(f)
 
             return cls(
@@ -730,8 +714,6 @@ class EmbeddingIntentClassifier(Component):
 
         else:
             logger.warning(
-                "Failed to load nlu model. Maybe path {} "
-                "doesn't exist"
-                "".format(os.path.abspath(model_dir))
+                f"Failed to load nlu model. Maybe path {os.path.abspath(model_dir)} doesn't exist"
             )
             return cls(component_config=meta)

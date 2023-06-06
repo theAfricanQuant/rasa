@@ -126,9 +126,7 @@ class FormPolicy(MemoizationPolicy):
 
         if state_is_unhappy:
             logger.debug(
-                "There is a memorized tracker state {}, "
-                "added `FormValidation(False)` event"
-                "".format(self._modified_states(states))
+                f"There is a memorized tracker state {self._modified_states(states)}, added `FormValidation(False)` event"
             )
 
         return state_is_unhappy
@@ -140,9 +138,7 @@ class FormPolicy(MemoizationPolicy):
         result = [0.0] * domain.num_actions
 
         if tracker.active_form.get("name"):
-            logger.debug(
-                "There is an active form '{}'".format(tracker.active_form["name"])
-            )
+            logger.debug(f"""There is an active form '{tracker.active_form["name"]}'""")
             if tracker.latest_action_name == ACTION_LISTEN_NAME:
                 # predict form action after user utterance
 

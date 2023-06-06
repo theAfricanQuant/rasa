@@ -26,10 +26,7 @@ class Policy(object):
 
     @classmethod
     def _create_featurizer(cls, featurizer=None):
-        if featurizer:
-            return copy.deepcopy(featurizer)
-        else:
-            return cls._standard_featurizer()
+        return copy.deepcopy(featurizer) if featurizer else cls._standard_featurizer()
 
     @staticmethod
     def _load_tf_config(config: Dict[Text, Any]) -> Optional[tf.ConfigProto]:
@@ -58,11 +55,9 @@ class Policy(object):
 
         params = {key: kwargs.get(key) for key in valid_keys if kwargs.get(key)}
         ignored_params = {
-            key: kwargs.get(key) for key in kwargs.keys() if not params.get(key)
+            key: kwargs.get(key) for key in kwargs if not params.get(key)
         }
-        logger.debug(
-            "Parameters ignored by `model.fit(...)`: {}".format(ignored_params)
-        )
+        logger.debug(f"Parameters ignored by `model.fit(...)`: {ignored_params}")
         return params
 
     def featurize_for_training(
@@ -80,8 +75,7 @@ class Policy(object):
         max_training_samples = kwargs.get("max_training_samples")
         if max_training_samples is not None:
             logger.debug(
-                "Limit training data to {} training samples."
-                "".format(max_training_samples)
+                f"Limit training data to {max_training_samples} training samples."
             )
             training_data.limit_training_data_to(max_training_samples)
 

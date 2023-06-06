@@ -1,7 +1,6 @@
 # we need to import the policy first
 from rasa.core.policies.policy import Policy
 
-pass
 # and after that any implementation
 from rasa.core.policies.ensemble import SimplePolicyEnsemble, PolicyEnsemble
 from rasa.core.policies.embedding_policy import EmbeddingPolicy

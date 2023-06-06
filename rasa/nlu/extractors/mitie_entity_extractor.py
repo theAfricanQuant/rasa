@@ -95,7 +95,7 @@ class MitieEntityExtractor(EntityExtractor):
                 # if the token is not aligned an exception will be raised
                 start, end = MitieEntityExtractor.find_entity(ent, text, tokens)
             except ValueError as e:
-                logger.warning("Example skipped: {}".format(str(e)))
+                logger.warning(f"Example skipped: {str(e)}")
                 continue
             try:
                 # mitie will raise an exception on malicious
@@ -103,9 +103,7 @@ class MitieEntityExtractor(EntityExtractor):
                 sample.add_entity(list(range(start, end)), ent["entity"])
             except Exception as e:
                 logger.warning(
-                    "Failed to add entity example "
-                    "'{}' of sentence '{}'. Reason: "
-                    "{}".format(str(e), str(text), e)
+                    f"Failed to add entity example '{str(e)}' of sentence '{str(text)}'. Reason: {e}"
                 )
                 continue
         return sample
@@ -153,7 +151,7 @@ class MitieEntityExtractor(EntityExtractor):
     def persist(self, file_name: Text, model_dir: Text) -> Optional[Dict[Text, Any]]:
 
         if self.ner:
-            file_name = file_name + ".dat"
+            file_name = f"{file_name}.dat"
             entity_extractor_file = os.path.join(model_dir, file_name)
             self.ner.save_to_disk(entity_extractor_file, pure_model=True)
             return {"file": file_name}

@@ -98,9 +98,7 @@ def requires_auth(app: Sanic, token: Optional[Text] = None) -> Callable[[Any], A
                 sender_id_arg_idx = argnames.index("conversation_id")
                 if "conversation_id" in kwargs:  # try to fetch from kwargs first
                     return kwargs["conversation_id"]
-                if sender_id_arg_idx < len(args):
-                    return args[sender_id_arg_idx]
-                return None
+                return args[sender_id_arg_idx] if sender_id_arg_idx < len(args) else None
             except ValueError:
                 return None
 
@@ -179,22 +177,20 @@ def event_verbosity_parameter(
         raise ErrorResponse(
             400,
             "BadRequest",
-            "Invalid parameter value for 'include_events'. "
-            "Should be one of {}".format(enum_values),
+            f"Invalid parameter value for 'include_events'. Should be one of {enum_values}",
             {"parameter": "include_events", "in": "query"},
         )
 
 
 def obtain_tracker_store(agent: "Agent", conversation_id: Text) -> DialogueStateTracker:
-    tracker = agent.tracker_store.get_or_create_tracker(conversation_id)
-    if not tracker:
+    if tracker := agent.tracker_store.get_or_create_tracker(conversation_id):
+        return tracker
+    else:
         raise ErrorResponse(
             409,
             "Conflict",
-            "Could not retrieve tracker with id '{}'. Most likely "
-            "because there is no domain set on the agent.".format(conversation_id),
+            f"Could not retrieve tracker with id '{conversation_id}'. Most likely because there is no domain set on the agent.",
         )
-    return tracker
 
 
 def validate_request_body(request: Request, error_message: Text):
@@ -268,14 +264,14 @@ async def _load_agent(
     except Exception as e:
         logger.debug(traceback.format_exc())
         raise ErrorResponse(
-            500, "LoadingError", "An unexpected error occurred. Error: {}".format(e)
+            500, "LoadingError", f"An unexpected error occurred. Error: {e}"
         )
 
     if not loaded_agent:
         raise ErrorResponse(
             400,
             "BadRequest",
-            "Agent with name '{}' could not be loaded.".format(model_path),
+            f"Agent with name '{model_path}' could not be loaded.",
             {"parameter": "model", "in": "query"},
         )
 
@@ -286,7 +282,7 @@ def add_root_route(app: Sanic):
     @app.get("/")
     async def hello(request: Request):
         """Check if the server is running and responds with the version."""
-        return response.text("Hello from Rasa: " + rasa.__version__)
+        return response.text(f"Hello from Rasa: {rasa.__version__}")
 
 
 def create_app(

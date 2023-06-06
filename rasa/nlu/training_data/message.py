@@ -9,10 +9,7 @@ class Message(object):
         self.time = time
         self.data = data if data else {}
 
-        if output_properties:
-            self.output_properties = output_properties
-        else:
-            self.output_properties = set()
+        self.output_properties = output_properties if output_properties else set()
 
     def set(self, prop, info, add_to_output=False):
         self.data[prop] = info

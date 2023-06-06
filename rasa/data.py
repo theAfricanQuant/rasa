@@ -196,7 +196,7 @@ def _copy_files_to_new_dir(files: Set[Text]) -> Text:
     for f in files:
         # makes sure files do not overwrite each other, hence the prefix
         unique_prefix = uuid.uuid4().hex
-        unique_file_name = unique_prefix + "_" + os.path.basename(f)
+        unique_file_name = f"{unique_prefix}_{os.path.basename(f)}"
         shutil.copy2(f, os.path.join(directory, unique_file_name))
 
     return directory

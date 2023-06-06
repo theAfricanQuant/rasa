@@ -142,7 +142,7 @@ def test_get_db_url_with_port_in_host():
     dialect = "postgresql"
     db = "mydb"
 
-    expected = "{}://{}/{}".format(dialect, host, db)
+    expected = f"{dialect}://{host}/{db}"
 
     assert (
         str(SQLTrackerStore.get_db_url(dialect="postgresql", host=host, db=db))

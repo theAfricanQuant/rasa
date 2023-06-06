@@ -46,9 +46,7 @@ def validate_yaml_schema(
         )
     except DuplicateKeyError as e:
         raise InvalidYamlFileError(
-            "The provided yaml file contains a duplicated key: '{}'. You can use "
-            "http://www.yamllint.com/ to validate the yaml syntax "
-            "of your file.".format(str(e))
+            f"The provided yaml file contains a duplicated key: '{str(e)}'. You can use http://www.yamllint.com/ to validate the yaml syntax of your file."
         )
 
     try:

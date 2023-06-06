@@ -183,7 +183,7 @@ def _transfer_style(source, target):
 
     for c in special_classes:
         if c in clazzes and c not in target["class"]:
-            target["class"] += " " + c
+            target["class"] += f" {c}"
 
     target["class"] = target["class"].strip()
     return target
@@ -297,7 +297,7 @@ def persist_graph(graph, output_file):
     # customize content of template by replacing tags
     template = template.replace("// { is-client }", "isClient = true", 1)
     template = template.replace(
-        "// { graph-content }", "graph = `{}`".format(expg.to_string()), 1
+        "// { graph-content }", f"graph = `{expg.to_string()}`", 1
     )
 
     with open(output_file, "w", encoding="utf-8") as file:
@@ -360,10 +360,7 @@ def _create_graph(fontsize: int = 12) -> "networkx.MultiDiGraph":
 
 
 def sanitize(s):
-    if s:
-        return re.escape(s)
-    else:
-        return s
+    return re.escape(s) if s else s
 
 
 def _add_message_edge(
@@ -428,10 +425,7 @@ async def visualize_neighborhood(
                 idx -= 1
                 break
             if isinstance(el, UserUttered):
-                if not el.intent:
-                    message = await interpreter.parse(el.text)
-                else:
-                    message = el.parse_data
+                message = await interpreter.parse(el.text) if not el.intent else el.parse_data
             elif (
                 isinstance(el, ActionExecuted) and el.action_name != ACTION_LISTEN_NAME
             ):
@@ -570,7 +564,7 @@ async def visualize_stories(
     completed_trackers = g.generate()
     event_sequences = [t.events for t in completed_trackers]
 
-    graph = await visualize_neighborhood(
+    return await visualize_neighborhood(
         None,
         event_sequences,
         output_file,
@@ -581,4 +575,3 @@ async def visualize_stories(
         max_distance=1,
         fontsize=fontsize,
     )
-    return graph

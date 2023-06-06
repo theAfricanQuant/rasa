@@ -19,5 +19,5 @@ class Dialogue(object):
 
         # This function returns the dialogue and turns.
         return "Dialogue with name '{}' and turns:\n{}".format(
-            self.name, "\n\n".join(["\t{}".format(t) for t in self.events])
+            self.name, "\n\n".join([f"\t{t}" for t in self.events])
         )

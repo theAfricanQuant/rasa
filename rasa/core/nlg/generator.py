@@ -39,7 +39,5 @@ class NaturalLanguageGenerator(object):
             return TemplatedNaturalLanguageGenerator(templates)
         else:
             raise Exception(
-                "Cannot create a NaturalLanguageGenerator "
-                "based on the passed object. Type: `{}`"
-                "".format(type(obj))
+                f"Cannot create a NaturalLanguageGenerator based on the passed object. Type: `{type(obj)}`"
             )

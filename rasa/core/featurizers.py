@@ -115,16 +115,10 @@ class BinarySingleStateFeaturizer(SingleStateFeaturizer):
                 using_only_ints = using_only_ints and utils.is_int(prob)
             else:
                 logger.debug(
-                    "Feature '{}' (value: '{}') could not be found in "
-                    "feature map. Make sure you added all intents and "
-                    "entities to the domain".format(state_name, prob)
+                    f"Feature '{state_name}' (value: '{prob}') could not be found in feature map. Make sure you added all intents and entities to the domain"
                 )
 
-        if using_only_ints:
-            # this is an optimization - saves us a bit of memory
-            return used_features.astype(np.int32)
-        else:
-            return used_features
+        return used_features.astype(np.int32) if using_only_ints else used_features
 
     def create_encoded_all_actions(self, domain: Domain) -> np.ndarray:
         """Create matrix with all actions from domain
@@ -168,9 +162,9 @@ class LabelTokenizerSingleStateFeaturizer(SingleStateFeaturizer):
         Creates the lookup dictionary for this tokens.
         Values in this dict are used for featurization."""
 
-        distinct_tokens = set(
-            [token for label in labels for token in label.split(split_symbol)]
-        )
+        distinct_tokens = {
+            token for label in labels for token in label.split(split_symbol)
+        }
         return {token: idx for idx, token in enumerate(sorted(distinct_tokens))}
 
     def prepare_from_domain(self, domain: Domain) -> None:
@@ -234,16 +228,9 @@ class LabelTokenizerSingleStateFeaturizer(SingleStateFeaturizer):
                     used_features[offset + idx] += prob
 
             else:
-                logger.warning(
-                    "Feature '{}' could not be found in "
-                    "feature map.".format(state_name)
-                )
+                logger.warning(f"Feature '{state_name}' could not be found in feature map.")
 
-        if using_only_ints:
-            # this is an optimization - saves us a bit of memory
-            return used_features.astype(np.int32)
-        else:
-            return used_features
+        return used_features.astype(np.int32) if using_only_ints else used_features
 
     def create_encoded_all_actions(self, domain: Domain) -> np.ndarray:
         """Create matrix with all actions from domain
@@ -281,35 +268,33 @@ class TrackerFeaturizer(object):
             set its probability to 1.0, while all the others to 0.0."""
         states = tracker.past_states(domain)
 
-        # during training we encounter only 1 or 0
-        if not self.use_intent_probabilities and not is_binary_training:
-            bin_states = []
-            for state in states:
-                # copy state dict to preserve internal order of keys
-                bin_state = dict(state)
-                best_intent = None
-                best_intent_prob = -1.0
-                for state_name, prob in state:
-                    if state_name.startswith("intent_"):
-                        if prob > best_intent_prob:
-                            # finding the maximum confidence intent
-                            if best_intent is not None:
-                                # delete previous best intent
-                                del bin_state[best_intent]
-                            best_intent = state_name
-                            best_intent_prob = prob
-                        else:
-                            # delete other intents
-                            del bin_state[state_name]
-
-                if best_intent is not None:
-                    # set the confidence of best intent to 1.0
-                    bin_state[best_intent] = 1.0
-
-                bin_states.append(bin_state)
-            return bin_states
-        else:
+        if self.use_intent_probabilities or is_binary_training:
             return [dict(state) for state in states]
+        bin_states = []
+        for state in states:
+            # copy state dict to preserve internal order of keys
+            bin_state = dict(state)
+            best_intent = None
+            best_intent_prob = -1.0
+            for state_name, prob in state:
+                if state_name.startswith("intent_"):
+                    if prob > best_intent_prob:
+                        # finding the maximum confidence intent
+                        if best_intent is not None:
+                            # delete previous best intent
+                            del bin_state[best_intent]
+                        best_intent = state_name
+                        best_intent_prob = prob
+                    else:
+                        # delete other intents
+                        del bin_state[state_name]
+
+            if best_intent is not None:
+                # set the confidence of best intent to 1.0
+                bin_state[best_intent] = 1.0
+
+            bin_states.append(bin_state)
+        return bin_states
 
     def _pad_states(self, states: List[Any]) -> List[Any]:
         return states
@@ -361,10 +346,7 @@ class TrackerFeaturizer(object):
 
             labels.append(story_labels)
 
-        # if it is MaxHistoryFeaturizer, squeeze out time axis
-        y = np.array(labels).squeeze()
-
-        return y
+        return np.array(labels).squeeze()
 
     def training_states_and_actions(
         self, trackers: List[DialogueStateTracker], domain: Domain
@@ -420,12 +402,10 @@ class TrackerFeaturizer(object):
         featurizer_file = os.path.join(path, "featurizer.json")
         if os.path.isfile(featurizer_file):
             return jsonpickle.decode(rasa.utils.io.read_file(featurizer_file))
-        else:
-            logger.error(
-                "Couldn't load featurizer for policy. "
-                "File '{}' doesn't exist.".format(featurizer_file)
-            )
-            return None
+        logger.error(
+            f"Couldn't load featurizer for policy. File '{featurizer_file}' doesn't exist."
+        )
+        return None
 
 
 class FullDialogueTrackerFeaturizer(TrackerFeaturizer):
@@ -448,7 +428,7 @@ class FullDialogueTrackerFeaturizer(TrackerFeaturizer):
     @staticmethod
     def _calculate_max_len(trackers_as_actions):
         if trackers_as_actions:
-            return max([len(states) for states in trackers_as_actions])
+            return max(len(states) for states in trackers_as_actions)
         else:
             return None
 
@@ -468,9 +448,7 @@ class FullDialogueTrackerFeaturizer(TrackerFeaturizer):
         trackers_as_actions = []
 
         logger.debug(
-            "Creating states and action examples from "
-            "collected trackers (by {}({}))..."
-            "".format(type(self).__name__, type(self.state_featurizer).__name__)
+            f"Creating states and action examples from collected trackers (by {type(self).__name__}({type(self.state_featurizer).__name__}))..."
         )
         pbar = tqdm(trackers, desc="Processed trackers", disable=is_logging_disabled())
         for tracker in pbar:
@@ -484,17 +462,14 @@ class FullDialogueTrackerFeaturizer(TrackerFeaturizer):
                         # only actions which can be
                         # predicted at a stories start
                         actions.append(event.action_name)
+                    elif delete_first_state:
+                        raise Exception(
+                            "Found two unpredictable "
+                            "actions in one story."
+                            "Check your story files."
+                        )
                     else:
-                        # unpredictable actions can be
-                        # only the first in the story
-                        if delete_first_state:
-                            raise Exception(
-                                "Found two unpredictable "
-                                "actions in one story."
-                                "Check your story files."
-                            )
-                        else:
-                            delete_first_state = True
+                        delete_first_state = True
 
             if delete_first_state:
                 states = states[1:]
@@ -503,7 +478,7 @@ class FullDialogueTrackerFeaturizer(TrackerFeaturizer):
             trackers_as_actions.append(actions)
 
         self.max_len = self._calculate_max_len(trackers_as_actions)
-        logger.debug("The longest dialogue has {} actions.".format(self.max_len))
+        logger.debug(f"The longest dialogue has {self.max_len} actions.")
 
         return trackers_as_states, trackers_as_actions
 
@@ -511,11 +486,7 @@ class FullDialogueTrackerFeaturizer(TrackerFeaturizer):
         self, trackers: List[DialogueStateTracker], domain: Domain
     ) -> List[List[Dict[Text, float]]]:
 
-        trackers_as_states = [
-            self._create_states(tracker, domain) for tracker in trackers
-        ]
-
-        return trackers_as_states
+        return [self._create_states(tracker, domain) for tracker in trackers]
 
 
 class MaxHistoryTrackerFeaturizer(TrackerFeaturizer):
@@ -552,9 +523,7 @@ class MaxHistoryTrackerFeaturizer(TrackerFeaturizer):
         slice_end = len(states)
         slice_start = max(0, slice_end - slice_length)
         padding = [None] * max(0, slice_length - slice_end)
-        # noinspection PyTypeChecker
-        state_features = padding + states[slice_start:]
-        return state_features
+        return padding + states[slice_start:]
 
     @staticmethod
     def _hash_example(states, action):
@@ -576,9 +545,7 @@ class MaxHistoryTrackerFeaturizer(TrackerFeaturizer):
         hashed_examples = set()
 
         logger.debug(
-            "Creating states and action examples from "
-            "collected trackers (by {}({}))..."
-            "".format(type(self).__name__, type(self.state_featurizer).__name__)
+            f"Creating states and action examples from collected trackers (by {type(self).__name__}({type(self.state_featurizer).__name__}))..."
         )
         pbar = tqdm(trackers, desc="Processed trackers", disable=is_logging_disabled())
         for tracker in pbar:
@@ -614,7 +581,7 @@ class MaxHistoryTrackerFeaturizer(TrackerFeaturizer):
                         )
                     idx += 1
 
-        logger.debug("Created {} action examples.".format(len(trackers_as_actions)))
+        logger.debug(f"Created {len(trackers_as_actions)} action examples.")
 
         return trackers_as_states, trackers_as_actions
 

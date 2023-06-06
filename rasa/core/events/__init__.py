@@ -27,8 +27,7 @@ def deserialise_events(serialized_events: List[Dict[Text, Any]]) -> List["Event"
 
     for e in serialized_events:
         if "event" in e:
-            event = Event.from_parameters(e)
-            if event:
+            if event := Event.from_parameters(e):
                 deserialised.append(event)
             else:
                 logger.warning(
@@ -97,9 +96,7 @@ class Event(object):
         parameters: Dict[Text, Any],
         default: Optional[Type["Event"]] = None,
     ) -> Optional[List["Event"]]:
-        event = Event.resolve_by_type(event_name, default)
-
-        if event:
+        if event := Event.resolve_by_type(event_name, default):
             return event._from_story_string(parameters)
         else:
             return None
@@ -110,17 +107,16 @@ class Event(object):
     ) -> Optional["Event"]:
 
         event_name = parameters.get("event")
-        if event_name is not None:
-            copied = parameters.copy()
-            del copied["event"]
-
-            event = Event.resolve_by_type(event_name, default)
-            if event:
-                return event._from_parameters(parameters)
-            else:
-                return None
-        else:
+        if event_name is None:
             return None
+        copied = parameters.copy()
+        del copied["event"]
+
+        return (
+            event._from_parameters(parameters)
+            if (event := Event.resolve_by_type(event_name, default))
+            else None
+        )
 
     @classmethod
     def _from_story_string(cls, parameters: Dict[Text, Any]) -> Optional[List["Event"]]:
@@ -142,10 +138,7 @@ class Event(object):
         result = cls._from_story_string(parameters)
         if len(result) > 1:
             logger.warning(
-                "Event from parameters called with parameters "
-                "for multiple events. This is not supported, "
-                "only the first event will be returned. "
-                "Parameters: {}".format(parameters)
+                f"Event from parameters called with parameters for multiple events. This is not supported, only the first event will be returned. Parameters: {parameters}"
             )
         return result[0] if result else None
 
@@ -164,7 +157,7 @@ class Event(object):
         elif default is not None:
             return default
         else:
-            raise ValueError("Unknown event name '{}'.".format(type_name))
+            raise ValueError(f"Unknown event name '{type_name}'.")
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
         pass
@@ -249,9 +242,7 @@ class UserUttered(Event):
             )
 
     def __str__(self):
-        return "UserUttered(text: {}, intent: {}, entities: {})".format(
-            self.text, self.intent, self.entities
-        )
+        return f"UserUttered(text: {self.text}, intent: {self.intent}, entities: {self.entities})"
 
     @staticmethod
     def empty():
@@ -284,28 +275,26 @@ class UserUttered(Event):
                 )
             ]
         except KeyError as e:
-            raise ValueError("Failed to parse bot uttered event. {}".format(e))
+            raise ValueError(f"Failed to parse bot uttered event. {e}")
 
     def as_story_string(self, e2e=False):
-        if self.intent:
-            if self.entities:
-                ent_string = json.dumps(
-                    {ent["entity"]: ent["value"] for ent in self.entities},
-                    ensure_ascii=False,
-                )
-            else:
-                ent_string = ""
-
-            parse_string = "{intent}{entities}".format(
-                intent=self.intent.get("name", ""), entities=ent_string
-            )
-            if e2e:
-                message = md_format_message(self.text, self.intent, self.entities)
-                return "{}: {}".format(self.intent.get("name"), message)
-            else:
-                return parse_string
-        else:
+        if not self.intent:
             return self.text
+        if self.entities:
+            ent_string = json.dumps(
+                {ent["entity"]: ent["value"] for ent in self.entities},
+                ensure_ascii=False,
+            )
+        else:
+            ent_string = ""
+
+        parse_string = "{intent}{entities}".format(
+            intent=self.intent.get("name", ""), entities=ent_string
+        )
+        if not e2e:
+            return parse_string
+        message = md_format_message(self.text, self.intent, self.entities)
+        return f'{self.intent.get("name")}: {message}'
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
         tracker.latest_message = self
@@ -332,10 +321,7 @@ class BotUttered(Event):
     def metadata(self):
         # needed for backwards compatibility <1.0.0 - previously pickled events
         # won't have the `_metadata` attribute
-        if hasattr(self, "_metadata"):
-            return self._metadata
-        else:
-            return {}
+        return self._metadata if hasattr(self, "_metadata") else {}
 
     def __members(self):
         data_no_nones = utils.remove_none_values(self.data)
@@ -356,14 +342,10 @@ class BotUttered(Event):
             return self.__members() == other.__members()
 
     def __str__(self):
-        return "BotUttered(text: {}, data: {}, metadata: {})".format(
-            self.text, json.dumps(self.data), json.dumps(self.metadata)
-        )
+        return f"BotUttered(text: {self.text}, data: {json.dumps(self.data)}, metadata: {json.dumps(self.metadata)})"
 
     def __repr__(self):
-        return "BotUttered('{}', {}, {}, {})".format(
-            self.text, json.dumps(self.data), json.dumps(self.metadata), self.timestamp
-        )
+        return f"BotUttered('{self.text}', {json.dumps(self.data)}, {json.dumps(self.metadata)}, {self.timestamp})"
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
 
@@ -408,7 +390,7 @@ class BotUttered(Event):
                 parameters.get("timestamp"),
             )
         except KeyError as e:
-            raise ValueError("Failed to parse bot uttered event. {}".format(e))
+            raise ValueError(f"Failed to parse bot uttered event. {e}")
 
 
 # noinspection PyProtectedMember
@@ -429,7 +411,7 @@ class SlotSet(Event):
         super(SlotSet, self).__init__(timestamp)
 
     def __str__(self):
-        return "SlotSet(key: {}, value: {})".format(self.key, self.value)
+        return f"SlotSet(key: {self.key}, value: {self.value})"
 
     def __hash__(self):
         return hash((self.key, jsonpickle.encode(self.value)))
@@ -447,14 +429,11 @@ class SlotSet(Event):
     @classmethod
     def _from_story_string(cls, parameters: Dict[Text, Any]) -> Optional[List[Event]]:
 
-        slots = []
-        for slot_key, slot_val in parameters.items():
-            slots.append(SlotSet(slot_key, slot_val))
-
-        if slots:
-            return slots
-        else:
-            return None
+        slots = [
+            SlotSet(slot_key, slot_val)
+            for slot_key, slot_val in parameters.items()
+        ]
+        return slots if slots else None
 
     def as_dict(self):
         d = super(SlotSet, self).as_dict()
@@ -470,7 +449,7 @@ class SlotSet(Event):
                 parameters.get("timestamp"),
             )
         except KeyError as e:
-            raise ValueError("Failed to parse set slot event. {}".format(e))
+            raise ValueError(f"Failed to parse set slot event. {e}")
 
     def apply_to(self, tracker):
         tracker._set_slot(self.key, self.value)
@@ -613,11 +592,7 @@ class ReminderScheduled(Event):
             return self.name == other.name
 
     def __str__(self):
-        return (
-            "ReminderScheduled("
-            "action: {}, trigger_date: {}, name: {}"
-            ")".format(self.action_name, self.trigger_date_time, self.name)
-        )
+        return f"ReminderScheduled(action: {self.action_name}, trigger_date: {self.trigger_date_time}, name: {self.name})"
 
     def _data_obj(self):
         return {
@@ -673,7 +648,7 @@ class ReminderCancelled(Event):
         return isinstance(other, ReminderCancelled)
 
     def __str__(self):
-        return "ReminderCancelled(action: {})".format(self.action_name)
+        return f"ReminderCancelled(action: {self.action_name})"
 
     def as_story_string(self):
         props = json.dumps({"action": self.action_name})
@@ -762,7 +737,7 @@ class FollowupAction(Event):
             return self.action_name == other.action_name
 
     def __str__(self):
-        return "FollowupAction(action: {})".format(self.action_name)
+        return f"FollowupAction(action: {self.action_name})"
 
     def as_story_string(self):
         props = json.dumps({"name": self.action_name})
@@ -855,9 +830,7 @@ class ActionExecuted(Event):
         super(ActionExecuted, self).__init__(timestamp)
 
     def __str__(self):
-        return "ActionExecuted(action: {}, policy: {}, confidence: {})".format(
-            self.action_name, self.policy, self.confidence
-        )
+        return f"ActionExecuted(action: {self.action_name}, policy: {self.policy}, confidence: {self.confidence})"
 
     def __hash__(self):
         return hash(self.action_name)
@@ -885,13 +858,8 @@ class ActionExecuted(Event):
 
     def as_dict(self):
         d = super(ActionExecuted, self).as_dict()
-        policy = None  # for backwards compatibility (persisted evemts)
-        if hasattr(self, "policy"):
-            policy = self.policy
-        confidence = None
-        if hasattr(self, "confidence"):
-            confidence = self.confidence
-
+        policy = self.policy if hasattr(self, "policy") else None
+        confidence = self.confidence if hasattr(self, "confidence") else None
         d.update({"name": self.action_name, "policy": policy, "confidence": confidence})
         return d
 
@@ -927,9 +895,7 @@ class AgentUttered(Event):
             )
 
     def __str__(self):
-        return "AgentUttered(text: {}, data: {})".format(
-            self.text, json.dumps(self.data)
-        )
+        return f"AgentUttered(text: {self.text}, data: {json.dumps(self.data)})"
 
     def apply_to(self, tracker: "DialogueStateTracker") -> None:
 
@@ -956,7 +922,7 @@ class AgentUttered(Event):
                 parameters.get("timestamp"),
             )
         except KeyError as e:
-            raise ValueError("Failed to parse agent uttered event. {}".format(e))
+            raise ValueError(f"Failed to parse agent uttered event. {e}")
 
 
 class Form(Event):
@@ -971,16 +937,13 @@ class Form(Event):
         super(Form, self).__init__(timestamp)
 
     def __str__(self):
-        return "Form({})".format(self.name)
+        return f"Form({self.name})"
 
     def __hash__(self):
         return hash(self.name)
 
     def __eq__(self, other):
-        if not isinstance(other, Form):
-            return False
-        else:
-            return self.name == other.name
+        return False if not isinstance(other, Form) else self.name == other.name
 
     def as_story_string(self):
         props = json.dumps({"name": self.name})
@@ -1011,7 +974,7 @@ class FormValidation(Event):
         super(FormValidation, self).__init__(timestamp)
 
     def __str__(self):
-        return "FormValidation({})".format(self.validate)
+        return f"FormValidation({self.validate})"
 
     def __hash__(self):
         return hash(self.validate)
@@ -1047,11 +1010,7 @@ class ActionExecutionRejected(Event):
         super(ActionExecutionRejected, self).__init__(timestamp)
 
     def __str__(self):
-        return (
-            "ActionExecutionRejected("
-            "action: {}, policy: {}, confidence: {})"
-            "".format(self.action_name, self.policy, self.confidence)
-        )
+        return f"ActionExecutionRejected(action: {self.action_name}, policy: {self.policy}, confidence: {self.confidence})"
 
     def __hash__(self):
         return hash(self.action_name)

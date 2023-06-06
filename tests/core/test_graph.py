@@ -9,7 +9,7 @@ def check_graph_is_sorted(g, sorted_nodes, removed_edges):
         deps = incoming_edges.get(n, [])
         # checks that all incoming edges are from nodes we have already visited
         assert all(
-            [d in visited or (d, n) in removed_edges for d in deps]
+            d in visited or (d, n) in removed_edges for d in deps
         ), "Found an incoming edge from a node that wasn't visited yet!"
         visited.add(n)
 

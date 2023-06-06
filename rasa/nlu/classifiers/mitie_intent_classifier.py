@@ -105,7 +105,7 @@ class MitieIntentClassifier(Component):
     def persist(self, file_name: Text, model_dir: Text) -> Dict[Text, Any]:
 
         if self.clf:
-            file_name = file_name + ".dat"
+            file_name = f"{file_name}.dat"
             classifier_file = os.path.join(model_dir, file_name)
             self.clf.save_to_disk(classifier_file, pure_model=True)
             return {"file": file_name}

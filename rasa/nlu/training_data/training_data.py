@@ -99,7 +99,7 @@ class TrainingData(object):
     @lazyproperty
     def intents(self) -> Set[Text]:
         """Returns the set of intents in the training data."""
-        return set([ex.get("intent") for ex in self.training_examples]) - {None}
+        return {ex.get("intent") for ex in self.training_examples} - {None}
 
     @lazyproperty
     def examples_per_intent(self) -> Dict[Text, int]:
@@ -122,7 +122,7 @@ class TrainingData(object):
     def sort_regex_features(self) -> None:
         """Sorts regex features lexicographically by name+pattern"""
         self.regex_features = sorted(
-            self.regex_features, key=lambda e: "{}+{}".format(e["name"], e["pattern"])
+            self.regex_features, key=lambda e: f'{e["name"]}+{e["pattern"]}'
         )
 
     def as_json(self, **kwargs: Any) -> Text:
@@ -194,19 +194,14 @@ class TrainingData(object):
         for intent, count in self.examples_per_intent.items():
             if count < self.MIN_EXAMPLES_PER_INTENT:
                 warnings.warn(
-                    "Intent '{}' has only {} training examples! "
-                    "Minimum is {}, training may fail.".format(
-                        intent, count, self.MIN_EXAMPLES_PER_INTENT
-                    )
+                    f"Intent '{intent}' has only {count} training examples! Minimum is {self.MIN_EXAMPLES_PER_INTENT}, training may fail."
                 )
 
         # emit warnings for entities with only a few training samples
         for entity_type, count in self.examples_per_entity.items():
             if count < self.MIN_EXAMPLES_PER_ENTITY:
                 warnings.warn(
-                    "Entity '{}' has only {} training examples! "
-                    "minimum is {}, training may fail."
-                    "".format(entity_type, count, self.MIN_EXAMPLES_PER_ENTITY)
+                    f"Entity '{entity_type}' has only {count} training examples! minimum is {self.MIN_EXAMPLES_PER_ENTITY}, training may fail."
                 )
 
     def train_test_split(
@@ -239,15 +234,19 @@ class TrainingData(object):
 
     def print_stats(self) -> None:
         logger.info(
-            "Training data stats: \n"
-            + "\t- intent examples: {} ({} distinct intents)\n".format(
-                len(self.intent_examples), len(self.intents)
+            (
+                (
+                    (
+                        (
+                            "Training data stats: \n"
+                            + f"\t- intent examples: {len(self.intent_examples)} ({len(self.intents)} distinct intents)\n"
+                        )
+                        + f"\t- Found intents: {list_to_str(self.intents)}\n"
+                    )
+                    + f"\t- entity examples: {len(self.entity_examples)} ({len(self.entities)} distinct entities)\n"
+                )
+                + f"\t- found entities: {list_to_str(self.entities)}\n"
             )
-            + "\t- Found intents: {}\n".format(list_to_str(self.intents))
-            + "\t- entity examples: {} ({} distinct entities)\n".format(
-                len(self.entity_examples), len(self.entities)
-            )
-            + "\t- found entities: {}\n".format(list_to_str(self.entities))
         )
 
     def is_empty(self) -> bool:
@@ -259,4 +258,4 @@ class TrainingData(object):
             self.regex_features,
             self.lookup_tables,
         ]
-        return not any([len(l) > 0 for l in lists_to_check])
+        return all(len(l) <= 0 for l in lists_to_check)

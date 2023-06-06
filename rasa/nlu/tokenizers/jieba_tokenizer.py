@@ -51,9 +51,9 @@ class JiebaTokenizer(Tokenizer, Component):
         """
         import jieba
 
-        jieba_userdicts = glob.glob("{}/*".format(path))
+        jieba_userdicts = glob.glob(f"{path}/*")
         for jieba_userdict in jieba_userdicts:
-            logger.info("Loading Jieba User Dictionary at {}".format(jieba_userdict))
+            logger.info(f"Loading Jieba User Dictionary at {jieba_userdict}")
             jieba.load_userdict(jieba_userdict)
 
     def train(
@@ -70,8 +70,7 @@ class JiebaTokenizer(Tokenizer, Component):
         import jieba
 
         tokenized = jieba.tokenize(text)
-        tokens = [Token(word, start) for (word, start, end) in tokenized]
-        return tokens
+        return [Token(word, start) for (word, start, end) in tokenized]
 
     @classmethod
     def load(
@@ -99,7 +98,7 @@ class JiebaTokenizer(Tokenizer, Component):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        target_file_list = glob.glob("{}/*".format(input_dir))
+        target_file_list = glob.glob(f"{input_dir}/*")
         for target_file in target_file_list:
             shutil.copy2(target_file, output_dir)
 

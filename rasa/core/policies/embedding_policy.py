@@ -170,9 +170,7 @@ class EmbeddingPolicy(Policy):
         if featurizer:
             if not isinstance(featurizer, FullDialogueTrackerFeaturizer):
                 raise TypeError(
-                    "Passed tracker featurizer of type {}, "
-                    "should be FullDialogueTrackerFeaturizer."
-                    "".format(type(featurizer).__name__)
+                    f"Passed tracker featurizer of type {type(featurizer).__name__}, should be FullDialogueTrackerFeaturizer."
                 )
         super(EmbeddingPolicy, self).__init__(featurizer, priority)
 
@@ -235,14 +233,7 @@ class EmbeddingPolicy(Policy):
         if self.share_embedding:
             if self.hidden_layer_sizes["a"] != self.hidden_layer_sizes["b"]:
                 raise ValueError(
-                    "Due to sharing vocabulary "
-                    "in the featurizer, embedding weights "
-                    "are shared as well. "
-                    "So hidden_layers_sizes_a={} should be "
-                    "equal to hidden_layers_sizes_b={}"
-                    "".format(
-                        self.hidden_layer_sizes["a"], self.hidden_layer_sizes["b"]
-                    )
+                    f'Due to sharing vocabulary in the featurizer, embedding weights are shared as well. So hidden_layers_sizes_a={self.hidden_layer_sizes["a"]} should be equal to hidden_layers_sizes_b={self.hidden_layer_sizes["b"]}'
                 )
 
         self.rnn_size = config["rnn_size"]
@@ -415,7 +406,7 @@ class EmbeddingPolicy(Policy):
                 units=layer_size,
                 activation=tf.nn.relu,
                 kernel_regularizer=reg,
-                name="hidden_layer_{}_{}".format(layer_name_suffix, i),
+                name=f"hidden_layer_{layer_name_suffix}_{i}",
                 reuse=tf.AUTO_REUSE,
             )
             x = tf.layers.dropout(x, rate=droprate, training=self._is_training)
@@ -425,15 +416,14 @@ class EmbeddingPolicy(Policy):
         """Create dense embedding layer with a name."""
 
         reg = tf.contrib.layers.l2_regularizer(self.C2)
-        embed_x = tf.layers.dense(
+        return tf.layers.dense(
             inputs=x,
             units=self.embed_dim,
             activation=None,
             kernel_regularizer=reg,
-            name="embed_layer_{}".format(layer_name_suffix),
+            name=f"embed_layer_{layer_name_suffix}",
             reuse=tf.AUTO_REUSE,
         )
-        return embed_x
 
     def _create_tf_user_embed(self, a_in: tf.Tensor) -> tf.Tensor:
         """Create embedding user vector."""
@@ -503,13 +493,7 @@ class EmbeddingPolicy(Policy):
         bias_1 = np.log(self.characteristic_time - 1.0)
         fbias = (bias_1 - bias_0) * np.random.random(self.rnn_size) + bias_0
 
-        if self.attn_after_rnn:
-            # since attention is copied to rnn output,
-            # embedding should be performed inside the cell
-            embed_layer_size = self.embed_dim
-        else:
-            embed_layer_size = None
-
+        embed_layer_size = self.embed_dim if self.attn_after_rnn else None
         keep_prob = 1.0 - (
             self.droprate["rnn"] * tf.cast(self._is_training, tf.float32)
         )
@@ -584,11 +568,7 @@ class EmbeddingPolicy(Policy):
                 # but this Exception exists in case
                 # attention before rnn is changed
                 raise ValueError(
-                    "Number of memory units {} is not "
-                    "equal to number of utter units {}. "
-                    "Please modify cell input function "
-                    "accordingly."
-                    "".format(num_cell_input_memory_units, self.embed_dim)
+                    f"Number of memory units {num_cell_input_memory_units} is not equal to number of utter units {self.embed_dim}. Please modify cell input function accordingly."
                 )
         else:
             return rnn_inputs
@@ -756,11 +736,10 @@ class EmbeddingPolicy(Policy):
         if not isinstance(alignments_from_state, tuple):
             alignments_from_state = [alignments_from_state]
 
-        alignment_history = []
-        for alignments in alignments_from_state:
-            # reshape to (batch, time, memory_time)
-            alignment_history.append(tf.transpose(alignments.stack(), [1, 0, 2]))
-
+        alignment_history = [
+            tf.transpose(alignments.stack(), [1, 0, 2])
+            for alignments in alignments_from_state
+        ]
         return tf.concat(alignment_history, -1)
 
     @staticmethod
@@ -774,17 +753,13 @@ class EmbeddingPolicy(Policy):
     def _sims_rnn_to_max_from(self, cell_output: tf.Tensor) -> List[tf.Tensor]:
         """Save intermediate tensors for debug purposes."""
 
-        if self.attn_after_rnn:
-            # extract additional debug tensors
-            num_add = TimeAttentionWrapper.additional_output_size()
-            self.copy_attn_debug = cell_output[:, :, -num_add:]
-
-            # extract additional similarity to maximize
-            sim_attn_to_max = cell_output[:, :, -num_add]
-            sim_state_to_max = cell_output[:, :, -num_add + 1]
-            return [sim_attn_to_max, sim_state_to_max]
-        else:
+        if not self.attn_after_rnn:
             return []
+        # extract additional debug tensors
+        num_add = TimeAttentionWrapper.additional_output_size()
+        self.copy_attn_debug = cell_output[:, :, -num_add:]
+
+        return [cell_output[:, :, -num_add], cell_output[:, :, -num_add + 1]]
 
     def _embed_dialogue_from(self, cell_output: tf.Tensor) -> tf.Tensor:
         """Extract or calculate dialogue level embedding from cell_output."""
@@ -837,44 +812,39 @@ class EmbeddingPolicy(Policy):
             embed_dialogue = tf.nn.l2_normalize(embed_dialogue, -1)
             embed_action = tf.nn.l2_normalize(embed_action, -1)
 
-        if self.similarity_type in {"cosine", "inner"}:
+        if self.similarity_type not in {"cosine", "inner"}:
+            raise ValueError(
+                f"Wrong similarity type {self.similarity_type}, should be 'cosine' or 'inner'"
+            )
+        if len(embed_dialogue.shape) == len(embed_action.shape):
+            # calculate similarity between
+            # two embedding vectors of the same size
+            sim = tf.reduce_sum(embed_dialogue * embed_action, -1, keepdims=True)
+            bin_sim = tf.where(
+                sim > (self.mu_pos - self.mu_neg) / 2.0,
+                tf.ones_like(sim),
+                tf.zeros_like(sim),
+            )
 
-            if len(embed_dialogue.shape) == len(embed_action.shape):
-                # calculate similarity between
-                # two embedding vectors of the same size
-                sim = tf.reduce_sum(embed_dialogue * embed_action, -1, keepdims=True)
-                bin_sim = tf.where(
-                    sim > (self.mu_pos - self.mu_neg) / 2.0,
-                    tf.ones_like(sim),
-                    tf.zeros_like(sim),
-                )
-
-                # output binary mask and similarity
-                return bin_sim, sim
-
-            else:
-                # calculate similarity with several
-                # embedded actions for the loss
-                sim = tf.reduce_sum(
-                    tf.expand_dims(embed_dialogue, -2) * embed_action, -1
-                )
-                sim *= tf.expand_dims(mask, 2)
-
-                sim_act = tf.reduce_sum(
-                    embed_action[:, :, :1, :] * embed_action[:, :, 1:, :], -1
-                )
-                sim_act *= tf.expand_dims(mask, 2)
-
-                # output similarities between user input and bot actions
-                # and similarities between bot actions
-                return sim, sim_act
+            # output binary mask and similarity
+            return bin_sim, sim
 
         else:
-            raise ValueError(
-                "Wrong similarity type {}, "
-                "should be 'cosine' or 'inner'"
-                "".format(self.similarity_type)
+            # calculate similarity with several
+            # embedded actions for the loss
+            sim = tf.reduce_sum(
+                tf.expand_dims(embed_dialogue, -2) * embed_action, -1
             )
+            sim *= tf.expand_dims(mask, 2)
+
+            sim_act = tf.reduce_sum(
+                embed_action[:, :, :1, :] * embed_action[:, :, 1:, :], -1
+            )
+            sim_act *= tf.expand_dims(mask, 2)
+
+            # output similarities between user input and bot actions
+            # and similarities between bot actions
+            return sim, sim_act
 
     def _regularization_loss(self) -> Union[tf.Tensor, int]:
         """Add regularization to the embed layer inside rnn cell."""
@@ -967,10 +937,7 @@ class EmbeddingPolicy(Policy):
 
         # check if number of negatives is less than number of actions
         logger.debug(
-            "Check if num_neg {} is smaller "
-            "than number of actions {}, "
-            "else set num_neg to the number of actions - 1"
-            "".format(self.num_neg, domain.num_actions)
+            f"Check if num_neg {self.num_neg} is smaller than number of actions {domain.num_actions}, else set num_neg to the number of actions - 1"
         )
         self.num_neg = min(self.num_neg, domain.num_actions - 1)
 
@@ -1174,8 +1141,7 @@ class EmbeddingPolicy(Policy):
 
         if self.evaluate_on_num_examples:
             logger.info(
-                "Accuracy is updated every {} epochs"
-                "".format(self.evaluate_every_num_epochs)
+                f"Accuracy is updated every {self.evaluate_every_num_epochs} epochs"
             )
         pbar = tqdm(range(self.epochs), desc="Epochs", disable=is_logging_disabled())
         train_acc = 0
@@ -1237,7 +1203,7 @@ class EmbeddingPolicy(Policy):
             # calculate train accuracy
             if self.evaluate_on_num_examples:
                 if (
-                    (ep + 1) == 1
+                    ep == 0
                     or (ep + 1) % self.evaluate_every_num_epochs == 0
                     or (ep + 1) == self.epochs
                 ):
@@ -1439,12 +1405,12 @@ class EmbeddingPolicy(Policy):
             saver.save(self.session, checkpoint)
 
         encoded_actions_file = os.path.join(
-            path, file_name + ".encoded_all_actions.pkl"
+            path, f"{file_name}.encoded_all_actions.pkl"
         )
         with open(encoded_actions_file, "wb") as f:
             pickle.dump(self.encoded_all_actions, f)
 
-        tf_config_file = os.path.join(path, file_name + ".tf_config.pkl")
+        tf_config_file = os.path.join(path, f"{file_name}.tf_config.pkl")
         with open(tf_config_file, "wb") as f:
             pickle.dump(self._tf_config, f)
 
@@ -1461,8 +1427,7 @@ class EmbeddingPolicy(Policy):
 
         if not os.path.exists(path):
             raise Exception(
-                "Failed to load dialogue model. Path {} "
-                "doesn't exist".format(os.path.abspath(path))
+                f"Failed to load dialogue model. Path {os.path.abspath(path)} doesn't exist"
             )
 
         featurizer = TrackerFeaturizer.load(path)
@@ -1470,13 +1435,13 @@ class EmbeddingPolicy(Policy):
         file_name = "tensorflow_embedding.ckpt"
         checkpoint = os.path.join(path, file_name)
 
-        if not os.path.exists(checkpoint + ".meta"):
+        if not os.path.exists(f"{checkpoint}.meta"):
             return cls(featurizer=featurizer)
 
         meta_file = os.path.join(path, "embedding_policy.json")
         meta = json.loads(rasa.utils.io.read_file(meta_file))
 
-        tf_config_file = os.path.join(path, "{}.tf_config.pkl".format(file_name))
+        tf_config_file = os.path.join(path, f"{file_name}.tf_config.pkl")
 
         with open(tf_config_file, "rb") as f:
             _tf_config = pickle.load(f)
@@ -1484,7 +1449,7 @@ class EmbeddingPolicy(Policy):
         graph = tf.Graph()
         with graph.as_default():
             sess = tf.Session(config=_tf_config)
-            saver = tf.train.import_meta_graph(checkpoint + ".meta")
+            saver = tf.train.import_meta_graph(f"{checkpoint}.meta")
 
             saver.restore(sess, checkpoint)
 
@@ -1513,7 +1478,7 @@ class EmbeddingPolicy(Policy):
             all_time_masks = cls.load_tensor("all_time_masks")
 
         encoded_actions_file = os.path.join(
-            path, "{}.encoded_all_actions.pkl".format(file_name)
+            path, f"{file_name}.encoded_all_actions.pkl"
         )
 
         with open(encoded_actions_file, "rb") as f:

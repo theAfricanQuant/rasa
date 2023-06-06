@@ -31,13 +31,11 @@ def get_validated_path(
 
     if current is None or current is not None and not os.path.exists(current):
         if default is not None and os.path.exists(default):
-            reason_str = "'{}' not found.".format(current)
+            reason_str = f"'{current}' not found."
             if current is None:
-                reason_str = "Parameter '{}' not set.".format(parameter)
+                reason_str = f"Parameter '{parameter}' not set."
 
-            logger.debug(
-                "{} Using default location '{}' instead.".format(reason_str, default)
-            )
+            logger.debug(f"{reason_str} Using default location '{default}' instead.")
             current = default
         elif none_is_valid:
             current = None
@@ -72,10 +70,9 @@ def cancel_cause_not_found(
 
     default_clause = ""
     if default:
-        default_clause = "use the default location ('{}') or ".format(default)
+        default_clause = f"use the default location ('{default}') or "
     print_error(
-        "The path '{}' does not exist. Please make sure to {}specify it"
-        " with '--{}'.".format(current, default_clause, parameter)
+        f"The path '{current}' does not exist. Please make sure to {default_clause}specify it with '--{parameter}'."
     )
     exit(1)
 
@@ -113,15 +110,13 @@ def create_output_path(
 
     if output_path.endswith("tar.gz"):
         return output_path
+    if fixed_name:
+        name = fixed_name
     else:
-        if fixed_name:
-            name = fixed_name
-        else:
-            time_format = "%Y%m%d-%H%M%S"
-            name = time.strftime(time_format)
-            name = "{}{}".format(prefix, name)
-        file_name = "{}.tar.gz".format(name)
-        return os.path.join(output_path, file_name)
+        name = time.strftime("%Y%m%d-%H%M%S")
+        name = f"{prefix}{name}"
+    file_name = f"{name}.tar.gz"
+    return os.path.join(output_path, file_name)
 
 
 class bcolors(object):
@@ -167,6 +162,4 @@ def signal_handler(sig, frame):
 def payload_from_button_question(button_question: Question) -> Text:
     """Prompts user with a button question and returns the nlu payload."""
     response = button_question.ask()
-    payload = response[response.find("(") + 1 : response.find(")")]
-
-    return payload
+    return response[response.find("(") + 1 : response.find(")")]

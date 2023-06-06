@@ -63,9 +63,7 @@ class SklearnPolicy(Policy):
         if featurizer:
             if not isinstance(featurizer, MaxHistoryTrackerFeaturizer):
                 raise TypeError(
-                    "Passed featurizer of type {}, should be "
-                    "MaxHistoryTrackerFeaturizer."
-                    "".format(type(featurizer).__name__)
+                    f"Passed featurizer of type {type(featurizer).__name__}, should be MaxHistoryTrackerFeaturizer."
                 )
         super(SklearnPolicy, self).__init__(featurizer, priority)
 
@@ -104,9 +102,8 @@ class SklearnPolicy(Policy):
         Xt = X.reshape(X.shape[0], -1)
         if y is None:
             return Xt
-        else:
-            yt = self.label_encoder.transform(y)
-            return Xt, yt
+        yt = self.label_encoder.transform(y)
+        return Xt, yt
 
     def _search_and_score(self, model, X, y, param_grid):
         search = GridSearchCV(
@@ -190,15 +187,13 @@ class SklearnPolicy(Policy):
         filename = os.path.join(path, "sklearn_model.pkl")
         if not os.path.exists(path):
             raise OSError(
-                "Failed to load dialogue model. Path {} "
-                "doesn't exist".format(os.path.abspath(filename))
+                f"Failed to load dialogue model. Path {os.path.abspath(filename)} doesn't exist"
             )
 
         featurizer = TrackerFeaturizer.load(path)
-        assert isinstance(featurizer, MaxHistoryTrackerFeaturizer), (
-            "Loaded featurizer of type {}, should be "
-            "MaxHistoryTrackerFeaturizer.".format(type(featurizer).__name__)
-        )
+        assert isinstance(
+            featurizer, MaxHistoryTrackerFeaturizer
+        ), f"Loaded featurizer of type {type(featurizer).__name__}, should be MaxHistoryTrackerFeaturizer."
 
         meta_file = os.path.join(path, "sklearn_policy.json")
         meta = json.loads(rasa.utils.io.read_file(meta_file))

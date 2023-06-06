@@ -73,7 +73,7 @@ class Checkpoint(object):
 
     def as_story_string(self):
         dumped_conds = json.dumps(self.conditions) if self.conditions else ""
-        return "{}{}".format(self.name, dumped_conds)
+        return f"{self.name}{dumped_conds}"
 
     def filter_trackers(self, trackers):
         """Filters out all trackers that do not satisfy the conditions."""
@@ -113,7 +113,7 @@ class StoryStep(object):
         self.block_name = block_name
         # put a counter prefix to uuid to get reproducible sorting results
         global STEP_COUNT
-        self.id = "{}_{}".format(STEP_COUNT, uuid.uuid4().hex)
+        self.id = f"{STEP_COUNT}_{uuid.uuid4().hex}"
         STEP_COUNT += 1
 
         self.story_string_helper = StoryStringHelper()
@@ -137,11 +137,11 @@ class StoryStep(object):
 
     @staticmethod
     def _checkpoint_string(story_step_element):
-        return "> {}\n".format(story_step_element.as_story_string())
+        return f"> {story_step_element.as_story_string()}\n"
 
     @staticmethod
     def _user_string(story_step_element, e2e, prefix=""):
-        return "* {}{}\n".format(prefix, story_step_element.as_story_string(e2e))
+        return f"* {prefix}{story_step_element.as_story_string(e2e)}\n"
 
     def _store_user_strings(self, story_step_element, e2e, prefix=""):
         self.story_string_helper.no_form_prefix_string += self._user_string(
@@ -153,7 +153,7 @@ class StoryStep(object):
 
     @staticmethod
     def _bot_string(story_step_element, prefix=""):
-        return "    - {}{}\n".format(prefix, story_step_element.as_story_string())
+        return f"    - {prefix}{story_step_element.as_story_string()}\n"
 
     def _store_bot_strings(self, story_step_element, prefix=""):
         self.story_string_helper.no_form_prefix_string += self._bot_string(
@@ -179,7 +179,7 @@ class StoryStep(object):
         if flat:
             result = ""
         else:
-            result = "\n## {}\n".format(self.block_name)
+            result = f"\n## {self.block_name}\n"
             for s in self.start_checkpoints:
                 if s.name != STORY_START:
                     result += self._checkpoint_string(s)
@@ -262,8 +262,7 @@ class StoryStep(object):
                     self._store_bot_strings(s)
 
             elif isinstance(s, Event):
-                converted = s.as_story_string()
-                if converted:
+                if converted := s.as_story_string():
                     if self.story_string_helper.active_form is None:
                         result += self._bot_string(s)
                     else:
@@ -274,7 +273,7 @@ class StoryStep(object):
                         self._store_bot_strings(s, FORM_PREFIX)
 
             else:
-                raise Exception("Unexpected element in story step: {}".format(s))
+                raise Exception(f"Unexpected element in story step: {s}")
 
         if (
             not self.end_checkpoints
@@ -289,7 +288,7 @@ class StoryStep(object):
 
         if not flat:
             for e in self.end_checkpoints:
-                result += "> {}\n".format(e.as_story_string())
+                result += f"> {e.as_story_string()}\n"
         return result
 
     @staticmethod
@@ -384,14 +383,14 @@ class Story(object):
             # override helper for next story step
             story_string_helper = step.story_string_helper
 
-        if flat:
-            if self.story_name:
-                name = self.story_name
-            else:
-                name = "Generated Story {}".format(hash(story_content))
-            return "## {}\n{}".format(name, story_content)
-        else:
+        if not flat:
             return story_content
+        name = (
+            self.story_name
+            if self.story_name
+            else f"Generated Story {hash(story_content)}"
+        )
+        return f"## {name}\n{story_content}"
 
     def dump_to_file(self, filename, flat=False, e2e=False):
         with open(filename, "a", encoding="utf-8") as f:
@@ -492,9 +491,9 @@ class StoryGraph(object):
                 cid = utils.generate_id(max_chars=GENERATED_HASH_LENGTH)
                 prefix = GENERATED_CHECKPOINT_PREFIX + CHECKPOINT_CYCLE_PREFIX
                 # need abbreviations otherwise they are not visualized well
-                sink_cp_name = prefix + "SINK_" + cid
-                connector_cp_name = prefix + "CONN_" + cid
-                source_cp_name = prefix + "SRC_" + cid
+                sink_cp_name = f"{prefix}SINK_{cid}"
+                connector_cp_name = f"{prefix}CONN_{cid}"
+                source_cp_name = f"{prefix}SRC_{cid}"
                 story_end_checkpoints[sink_cp_name] = source_cp_name
 
                 overlapping_cps = self.overlapping_checkpoint_names(
@@ -614,10 +613,10 @@ class StoryGraph(object):
         """Checks if checkpoint with name and conditions is
             already in the list of checkpoints."""
 
-        for cp in cps:
-            if checkpoint_name == cp.name and conditions == cp.conditions:
-                return True
-        return False
+        return any(
+            checkpoint_name == cp.name and conditions == cp.conditions
+            for cp in cps
+        )
 
     @staticmethod
     def _find_unused_checkpoints(
@@ -645,10 +644,7 @@ class StoryGraph(object):
     def as_story_string(self) -> Text:
         """Convert the graph into the story file format."""
 
-        story_content = ""
-        for step in self.story_steps:
-            story_content += step.as_story_string(flat=False)
-        return story_content
+        return "".join(step.as_story_string(flat=False) for step in self.story_steps)
 
     @staticmethod
     def order_steps(

@@ -26,7 +26,7 @@ def test_validator_creation(validator: Validator):
 
 
 def test_verify_intents(validator: Validator):
-    valid_intents = [intent for intent in validator.domain.intents]
+    valid_intents = list(validator.domain.intents)
     verified_intents = validator.verify_intents()
     assert set(verified_intents) == set(valid_intents)
 

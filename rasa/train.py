@@ -177,8 +177,7 @@ async def _train_async_internal(
         )
 
     print_success(
-        "Nothing changed. You can use the old model stored at '{}'."
-        "".format(os.path.abspath(old_model))
+        f"Nothing changed. You can use the old model stored at '{os.path.abspath(old_model)}'."
     )
     return old_model
 

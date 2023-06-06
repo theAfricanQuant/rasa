@@ -20,7 +20,7 @@ def mock_endpoint():
 async def test_send_message(mock_endpoint):
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/messages".format(mock_endpoint.url, sender_id)
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/messages"
     with aioresponses() as mocked:
         mocked.post(url, payload={})
 
@@ -38,7 +38,7 @@ async def test_send_message(mock_endpoint):
 async def test_request_prediction(mock_endpoint):
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/predict".format(mock_endpoint.url, sender_id)
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/predict"
 
     with aioresponses() as mocked:
         mocked.post(url, payload={})
@@ -146,9 +146,7 @@ async def test_print_history(mock_endpoint):
 
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/tracker?include_events=AFTER_RESTART".format(
-        mock_endpoint.url, sender_id
-    )
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker?include_events=AFTER_RESTART"
     with aioresponses() as mocked:
         mocked.get(url, body=tracker_dump, headers={"Accept": "application/json"})
 
@@ -162,9 +160,7 @@ async def test_is_listening_for_messages(mock_endpoint):
 
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/tracker?include_events=APPLIED".format(
-        mock_endpoint.url, sender_id
-    )
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker?include_events=APPLIED"
     with aioresponses() as mocked:
         mocked.get(url, body=tracker_dump, headers={"Content-Type": "application/json"})
 
@@ -254,12 +250,8 @@ async def test_undo_latest_msg(mock_endpoint):
 
     sender_id = uuid.uuid4().hex
 
-    url = "{}/conversations/{}/tracker?include_events=ALL".format(
-        mock_endpoint.url, sender_id
-    )
-    append_url = "{}/conversations/{}/tracker/events".format(
-        mock_endpoint.url, sender_id
-    )
+    url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker?include_events=ALL"
+    append_url = f"{mock_endpoint.url}/conversations/{sender_id}/tracker/events"
     with aioresponses() as mocked:
         mocked.get(url, body=tracker_dump)
         mocked.post(append_url)
@@ -308,7 +300,7 @@ async def test_interactive_domain_persistence(mock_endpoint, tmpdir):
 
     domain_path = tmpdir.join("interactive_domain_save.yml").strpath
 
-    url = "{}/domain".format(mock_endpoint.url)
+    url = f"{mock_endpoint.url}/domain"
     with aioresponses() as mocked:
         mocked.get(url, payload={})
 

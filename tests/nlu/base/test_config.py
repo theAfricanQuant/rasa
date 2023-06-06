@@ -45,7 +45,7 @@ def test_pipeline_looksup_registry():
     args = {"pipeline": pipeline_template}
     f = write_file_config(args)
     final_config = config.load(f.name)
-    components = [c for c in final_config.pipeline]
+    components = list(final_config.pipeline)
     assert components == registered_pipeline_templates[pipeline_template]
 
 

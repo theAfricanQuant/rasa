@@ -16,7 +16,7 @@ def regex_interpreter():
 
 
 async def test_regex_interpreter_intent(regex_interpreter):
-    text = INTENT_MESSAGE_PREFIX + "my_intent"
+    text = f"{INTENT_MESSAGE_PREFIX}my_intent"
     result = await regex_interpreter.parse(text)
     assert result["text"] == text
     assert len(result["intent_ranking"]) == 1
@@ -50,7 +50,7 @@ async def test_regex_interpreter_entities(regex_interpreter):
 
 
 async def test_regex_interpreter_confidence(regex_interpreter):
-    text = INTENT_MESSAGE_PREFIX + "my_intent@0.5"
+    text = f"{INTENT_MESSAGE_PREFIX}my_intent@0.5"
     result = await regex_interpreter.parse(text)
     assert result["text"] == text
     assert len(result["intent_ranking"]) == 1

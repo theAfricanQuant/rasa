@@ -14,9 +14,7 @@ def load(config_file: Optional[Union[Text, Dict]]) -> List["Policy"]:
 
     if not config_file:
         raise ValueError(
-            "You have to provide a valid path to a config file. "
-            "The file '{}' could not be found."
-            "".format(os.path.abspath(config_file))
+            f"You have to provide a valid path to a config file. The file '{os.path.abspath(config_file)}' could not be found."
         )
 
     config_data = {}

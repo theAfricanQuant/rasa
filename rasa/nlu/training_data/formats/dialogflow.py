@@ -31,17 +31,14 @@ class DialogflowReader(TrainingDataReader):
 
         if fformat not in {DIALOGFLOW_INTENT, DIALOGFLOW_ENTITIES}:
             raise ValueError(
-                "fformat must be either {}, or {}"
-                "".format(DIALOGFLOW_INTENT, DIALOGFLOW_ENTITIES)
+                f"fformat must be either {DIALOGFLOW_INTENT}, or {DIALOGFLOW_ENTITIES}"
             )
 
         root_js = rasa.utils.io.read_json_file(fn)
         examples_js = self._read_examples_js(fn, language, fformat)
 
         if not examples_js:
-            logger.warning(
-                "No training examples found for dialogflow file {}!".format(fn)
-            )
+            logger.warning(f"No training examples found for dialogflow file {fn}!")
             return TrainingData()
         elif fformat == DIALOGFLOW_INTENT:
             return self._read_intent(root_js, examples_js)
@@ -67,8 +64,7 @@ class DialogflowReader(TrainingDataReader):
         utterance = ""
         entities = []
         for chunk in chunks:
-            entity = self._extract_entity(chunk, len(utterance))
-            if entity:
+            if entity := self._extract_entity(chunk, len(utterance)):
                 entities.append(entity)
             utterance += chunk["text"]
 
@@ -100,9 +96,7 @@ class DialogflowReader(TrainingDataReader):
         synonyms = DialogflowReader._flatten(synonyms)
         elements = [synonym for synonym in synonyms if "@" not in synonym]
 
-        if len(elements) == 0:
-            return False
-        return [{"name": name, "elements": elements}]
+        return False if not elements else [{"name": name, "elements": elements}]
 
     @staticmethod
     def _read_entities(entity_js, examples_js) -> "TrainingData":
@@ -119,11 +113,8 @@ class DialogflowReader(TrainingDataReader):
         """Infer and load the example file based on the root
         filename and root format."""
 
-        if fformat == DIALOGFLOW_INTENT:
-            examples_type = "usersays"
-        else:
-            examples_type = "entries"
-        examples_fn_ending = "_{}_{}.json".format(examples_type, language)
+        examples_type = "usersays" if fformat == DIALOGFLOW_INTENT else "entries"
+        examples_fn_ending = f"_{examples_type}_{language}.json"
         examples_fn = fn.replace(".json", examples_fn_ending)
         if os.path.isfile(examples_fn):
             return rasa.utils.io.read_json_file(examples_fn)

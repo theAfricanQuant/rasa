@@ -16,24 +16,17 @@ class LuisReader(JsonTrainingDataReader):
         from rasa.nlu.training_data import Message, TrainingData
 
         training_examples = []
-        regex_features = []
-
         # Simple check to ensure we support this luis data schema version
         if not js["luis_schema_version"].startswith("2"):
             raise Exception(
-                "Invalid luis data schema version {}, "
-                "should be 2.x.x. "
-                "Make sure to use the latest luis version "
-                "(e.g. by downloading your data again)."
-                "".format(js["luis_schema_version"])
+                f'Invalid luis data schema version {js["luis_schema_version"]}, should be 2.x.x. Make sure to use the latest luis version (e.g. by downloading your data again).'
             )
 
-        for r in js.get("regex_features", []):
-            if r.get("activated", False):
-                regex_features.append(
-                    {"name": r.get("name"), "pattern": r.get("pattern")}
-                )
-
+        regex_features = [
+            {"name": r.get("name"), "pattern": r.get("pattern")}
+            for r in js.get("regex_features", [])
+            if r.get("activated", False)
+        ]
         for s in js["utterances"]:
             text = s.get("text")
             intent = s.get("intent")

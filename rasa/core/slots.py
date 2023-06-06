@@ -38,25 +38,17 @@ class Slot(object):
 
     def as_feature(self):
         raise NotImplementedError(
-            "Each slot type needs to specify how its "
-            "value can be converted to a feature. Slot "
-            "'{}' is a generic slot that can not be used "
-            "for predictions. Make sure you add this "
-            "slot to your domain definition, specifying "
-            "the type of the slot. If you implemented "
-            "a custom slot type class, make sure to "
-            "implement `.as_feature()`."
-            "".format(self.name)
+            f"Each slot type needs to specify how its value can be converted to a feature. Slot '{self.name}' is a generic slot that can not be used for predictions. Make sure you add this slot to your domain definition, specifying the type of the slot. If you implemented a custom slot type class, make sure to implement `.as_feature()`."
         )
 
     def reset(self):
         self.value = self.initial_value
 
     def __str__(self):
-        return "{}({}: {})".format(self.__class__.__name__, self.name, self.value)
+        return f"{self.__class__.__name__}({self.name}: {self.value})"
 
     def __repr__(self):
-        return "<{}({}: {})>".format(self.__class__.__name__, self.name, self.value)
+        return f"<{self.__class__.__name__}({self.name}: {self.value})>"
 
     @staticmethod
     def resolve_by_type(type_name):
@@ -68,9 +60,7 @@ class Slot(object):
             return class_from_module_path(type_name)
         except (ImportError, AttributeError):
             raise ValueError(
-                "Failed to find slot type, '{}' is neither a known type nor "
-                "user-defined. If you are creating your own slot type, make "
-                "sure its module path is correct.".format(type_name)
+                f"Failed to find slot type, '{type_name}' is neither a known type nor user-defined. If you are creating your own slot type, make sure its module path is correct."
             )
 
     def persistence_info(self):
@@ -101,17 +91,12 @@ class FloatSlot(Slot):
 
         if min_value >= max_value:
             raise ValueError(
-                "Float slot ('{}') created with an invalid range "
-                "using min ({}) and max ({}) values. Make sure "
-                "min is smaller than max."
-                "".format(self.name, self.min_value, self.max_value)
+                f"Float slot ('{self.name}') created with an invalid range using min ({self.min_value}) and max ({self.max_value}) values. Make sure min is smaller than max."
             )
 
         if initial_value is not None and not (min_value <= initial_value <= max_value):
             logger.warning(
-                "Float slot ('{}') created with an initial value {}"
-                "outside of configured min ({}) and max ({}) values."
-                "".format(self.name, self.value, self.min_value, self.max_value)
+                f"Float slot ('{self.name}') created with an initial value {self.value}outside of configured min ({self.min_value}) and max ({self.max_value}) values."
             )
 
     def as_feature(self):
@@ -161,10 +146,7 @@ class ListSlot(Slot):
 
     def as_feature(self):
         try:
-            if self.value is not None and len(self.value) > 0:
-                return [1.0]
-            else:
-                return [0.0]
+            return [1.0] if self.value is not None and len(self.value) > 0 else [0.0]
         except (TypeError, ValueError):
             # we couldn't convert the value to a list - using default value
             return [0.0]
@@ -212,13 +194,7 @@ class CategoricalSlot(Slot):
             else:
                 if self.value is not None:
                     logger.warning(
-                        "Categorical slot '{}' is set to a value ('{}') "
-                        "that is not specified in the domain. "
-                        "Value will be ignored and the slot will "
-                        "behave as if no value is set. "
-                        "Make sure to add all values a categorical "
-                        "slot should store to the domain."
-                        "".format(self.name, self.value)
+                        f"Categorical slot '{self.name}' is set to a value ('{self.value}') that is not specified in the domain. Value will be ignored and the slot will behave as if no value is set. Make sure to add all values a categorical slot should store to the domain."
                     )
         except (TypeError, ValueError):
             logger.exception("Failed to featurize categorical slot.")

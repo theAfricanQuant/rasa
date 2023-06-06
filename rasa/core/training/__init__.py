@@ -46,29 +46,28 @@ async def load_data(
     from rasa.core.training.generator import TrainingDataGenerator
     from rasa.importers.importer import TrainingDataImporter
 
-    if resource_name:
-        if isinstance(resource_name, TrainingDataImporter):
-            graph = await resource_name.get_stories(
-                exclusion_percentage=exclusion_percentage
-            )
-        else:
-            graph = await extract_story_graph(
-                resource_name, domain, exclusion_percentage=exclusion_percentage
-            )
-
-        g = TrainingDataGenerator(
-            graph,
-            domain,
-            remove_duplicates,
-            unique_last_num_states,
-            augmentation_factor,
-            tracker_limit,
-            use_story_concatenation,
-            debug_plots,
-        )
-        return g.generate()
-    else:
+    if not resource_name:
         return []
+    graph = (
+        await resource_name.get_stories(
+            exclusion_percentage=exclusion_percentage
+        )
+        if isinstance(resource_name, TrainingDataImporter)
+        else await extract_story_graph(
+            resource_name, domain, exclusion_percentage=exclusion_percentage
+        )
+    )
+    g = TrainingDataGenerator(
+        graph,
+        domain,
+        remove_duplicates,
+        unique_last_num_states,
+        augmentation_factor,
+        tracker_limit,
+        use_story_concatenation,
+        debug_plots,
+    )
+    return g.generate()
 
 
 def persist_data(trackers: List["DialogueStateTracker"], path: Text) -> None:

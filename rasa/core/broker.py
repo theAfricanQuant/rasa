@@ -37,8 +37,7 @@ def load_event_channel_from_module_string(
         return event_channel.from_endpoint_config(broker_config)
     except (AttributeError, ImportError) as e:
         logger.warning(
-            "EventChannel type '{}' not found. "
-            "Not using any event channel. Error: {}".format(broker_config.type, e)
+            f"EventChannel type '{broker_config.type}' not found. Not using any event channel. Error: {e}"
         )
         return None
 
@@ -105,8 +104,7 @@ class PikaProducer(EventChannel):
     def _publish(self, body):
         self.channel.basic_publish("", self.queue, body)
         logger.debug(
-            "Published pika events to queue {} at "
-            "{}:\n{}".format(self.queue, self.host, body)
+            f"Published pika events to queue {self.queue} at {self.host}:\n{body}"
         )
 
     def _close(self):
@@ -128,11 +126,7 @@ class FileProducer(EventChannel):
     def from_endpoint_config(
         cls, broker_config: Optional["EndpointConfig"]
     ) -> Optional["FileProducer"]:
-        if broker_config is None:
-            return None
-
-        # noinspection PyArgumentList
-        return cls(**broker_config.kwargs)
+        return None if broker_config is None else cls(**broker_config.kwargs)
 
     def _event_logger(self):
         """Instantiate the file logger."""
@@ -146,7 +140,7 @@ class FileProducer(EventChannel):
         query_logger.propagate = False
         query_logger.addHandler(handler)
 
-        logger.info("Logging events to '{}'.".format(logger_file))
+        logger.info(f"Logging events to '{logger_file}'.")
 
         return query_logger
 
@@ -263,7 +257,7 @@ class SQLProducer(EventChannel):
             dialect, host, port, db, username, password
         )
 
-        logger.debug("SQLProducer: Connecting to database: '{}'.".format(engine_url))
+        logger.debug(f"SQLProducer: Connecting to database: '{engine_url}'.")
 
         self.engine = sqlalchemy.create_engine(engine_url)
         self.Base.metadata.create_all(self.engine)

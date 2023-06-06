@@ -84,15 +84,13 @@ class MemoizationPolicy(Policy):
         if not trackers_as_states:
             return
 
-        assert len(trackers_as_states[0]) == self.max_history, (
-            "Trying to mem featurized data with {} historic turns. Expected: "
-            "{}".format(len(trackers_as_states[0]), self.max_history)
-        )
+        assert (
+            len(trackers_as_states[0]) == self.max_history
+        ), f"Trying to mem featurized data with {len(trackers_as_states[0])} historic turns. Expected: {self.max_history}"
 
-        assert len(trackers_as_actions[0]) == 1, (
-            "The second dimension of trackers_as_action should be 1, "
-            "instead of {}".format(len(trackers_as_actions[0]))
-        )
+        assert (
+            len(trackers_as_actions[0]) == 1
+        ), f"The second dimension of trackers_as_action should be 1, instead of {len(trackers_as_actions[0])}"
 
         ambiguous_feature_keys = set()
 
@@ -112,13 +110,7 @@ class MemoizationPolicy(Policy):
                     if self.lookup[feature_key] != feature_item:
                         if online:
                             logger.info(
-                                "Original stories are "
-                                "different for {} -- {}\n"
-                                "Memorized the new ones for "
-                                "now. Delete contradicting "
-                                "examples after exporting "
-                                "the new stories."
-                                "".format(states, action)
+                                f"Original stories are different for {states} -- {action}\nMemorized the new ones for now. Delete contradicting examples after exporting the new stories."
                             )
                             self.lookup[feature_key] = feature_item
                         else:
@@ -132,11 +124,10 @@ class MemoizationPolicy(Policy):
 
     def _create_feature_key(self, states):
         feature_str = json.dumps(states, sort_keys=True).replace('"', "")
-        if self.ENABLE_FEATURE_STRING_COMPRESSION:
-            compressed = zlib.compress(bytes(feature_str, "utf-8"))
-            return base64.b64encode(compressed).decode("utf-8")
-        else:
+        if not self.ENABLE_FEATURE_STRING_COMPRESSION:
             return feature_str
+        compressed = zlib.compress(bytes(feature_str, "utf-8"))
+        return base64.b64encode(compressed).decode("utf-8")
 
     def train(
         self,
@@ -157,7 +148,7 @@ class MemoizationPolicy(Policy):
             trackers_as_actions,
         ) = self.featurizer.training_states_and_actions(training_trackers, domain)
         self._add_states_to_lookup(trackers_as_states, trackers_as_actions, domain)
-        logger.debug("Memorized {} unique examples.".format(len(self.lookup)))
+        logger.debug(f"Memorized {len(self.lookup)} unique examples.")
 
     def continue_training(
         self,
@@ -202,10 +193,10 @@ class MemoizationPolicy(Policy):
 
         tracker_as_states = self.featurizer.prediction_states([tracker], domain)
         states = tracker_as_states[0]
-        logger.debug("Current tracker state {}".format(states))
+        logger.debug(f"Current tracker state {states}")
         recalled = self.recall(states, tracker, domain)
         if recalled is not None:
-            logger.debug("There is a memorised next action '{}'".format(recalled))
+            logger.debug(f"There is a memorised next action '{recalled}'")
 
             if self.USE_NLU_CONFIDENCE_AS_SCORE:
                 # the memoization will use the confidence of NLU on the latest
@@ -245,9 +236,7 @@ class MemoizationPolicy(Policy):
             )
         else:
             logger.info(
-                "Couldn't load memoization for policy. "
-                "File '{}' doesn't exist. Falling back to empty "
-                "turn memory.".format(memorized_file)
+                f"Couldn't load memoization for policy. File '{memorized_file}' doesn't exist. Falling back to empty turn memory."
             )
             return cls()
 
@@ -316,7 +305,7 @@ class AugmentedMemoizationPolicy(MemoizationPolicy):
                 # check if we like new futures
                 memorised = self._recall_states(states)
                 if memorised is not None:
-                    logger.debug("Current tracker state {}".format(states))
+                    logger.debug(f"Current tracker state {states}")
                     return memorised
                 old_states = states
 
@@ -324,7 +313,7 @@ class AugmentedMemoizationPolicy(MemoizationPolicy):
             mcfly_tracker = self._back_to_the_future_again(mcfly_tracker)
 
         # No match found
-        logger.debug("Current tracker state {}".format(old_states))
+        logger.debug(f"Current tracker state {old_states}")
         return None
 
     def recall(

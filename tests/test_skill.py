@@ -231,7 +231,7 @@ async def test_multi_skill_training():
         "mood_unhappy",
     }
 
-    assert all([i in domain.intents for i in expected_intents])
+    assert all(i in domain.intents for i in expected_intents)
 
     nlu_training_data_file = os.path.join(unpacked, "nlu", "training_data.json")
     nlu_training_data = RasaReader().read(nlu_training_data_file)
@@ -246,4 +246,4 @@ async def test_multi_skill_training():
         "utter_goodbye",
     ]
 
-    assert all([a in domain.action_names for a in expected_actions])
+    assert all(a in domain.action_names for a in expected_actions)

@@ -24,7 +24,7 @@ DEFAULT_STREAM_READING_TIMEOUT_IN_SECONDS = 10
 def print_bot_output(
     message, color=rasa.cli.utils.bcolors.OKBLUE
 ) -> Optional[questionary.Question]:
-    if ("text" in message) and not ("buttons" in message):
+    if "text" in message and "buttons" not in message:
         rasa.cli.utils.print_color(message.get("text"), color=color)
 
     if "image" in message:
@@ -41,13 +41,13 @@ def print_bot_output(
             for idx, button in enumerate(message.get("buttons"))
         ]
 
-        question = questionary.select(
+        return questionary.select(
             message.get("text"),
             choices,
-            style=Style([("qmark", "#6d91d3"), ("", "#6d91d3"), ("answer", "#b373d6")]),
+            style=Style(
+                [("qmark", "#6d91d3"), ("", "#6d91d3"), ("answer", "#b373d6")]
+            ),
         )
-        return question
-
     if "elements" in message:
         rasa.cli.utils.print_color("Elements:", color=color)
         for idx, element in enumerate(message.get("elements")):
@@ -81,7 +81,7 @@ def get_cmd_input(button_question: questionary.Question) -> Optional[Text]:
 async def send_message_receive_block(server_url, auth_token, sender_id, message):
     payload = {"sender": sender_id, "message": message}
 
-    url = "{}/webhooks/rest/webhook?token={}".format(server_url, auth_token)
+    url = f"{server_url}/webhooks/rest/webhook?token={auth_token}"
     async with aiohttp.ClientSession() as session:
         async with session.post(url, json=payload, raise_for_status=True) as resp:
             return await resp.json()
@@ -91,7 +91,7 @@ async def send_message_receive_block(server_url, auth_token, sender_id, message)
 async def send_message_receive_stream(server_url, auth_token, sender_id, message):
     payload = {"sender": sender_id, "message": message}
 
-    url = "{}/webhooks/rest/webhook?stream=true&token={}".format(server_url, auth_token)
+    url = f"{server_url}/webhooks/rest/webhook?stream=true&token={auth_token}"
 
     # Define timeout to not keep reading in case the server crashed in between
     timeout = ClientTimeout(DEFAULT_STREAM_READING_TIMEOUT_IN_SECONDS)
@@ -115,11 +115,10 @@ async def record_messages(
 
     auth_token = auth_token if auth_token else ""
 
-    exit_text = INTENT_MESSAGE_PREFIX + "stop"
+    exit_text = f"{INTENT_MESSAGE_PREFIX}stop"
 
     rasa.cli.utils.print_success(
-        "Bot loaded. Type a message and press enter "
-        "(use '{}' to exit): ".format(exit_text)
+        f"Bot loaded. Type a message and press enter (use '{exit_text}' to exit): "
     )
 
     num_messages = 0

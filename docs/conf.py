@@ -325,7 +325,7 @@ os.chdir(os.path.abspath('..'))
 # extlinks configuration
 
 extlinks = {
-    "gh-code": ("https://github.com/RasaHQ/rasa/tree/{}/%s".format(release), "github ")
+    "gh-code": (f"https://github.com/RasaHQ/rasa/tree/{release}/%s", "github ")
 }
 
 # Sphinxcontrib configuration

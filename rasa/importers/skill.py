@@ -25,10 +25,7 @@ class SkillSelector(TrainingDataImporter):
         project_directory: Optional[Text] = None,
     ):
         self.config = io_utils.read_config_file(config_file)
-        if domain_path:
-            self._domain_paths = [domain_path]
-        else:
-            self._domain_paths = []
+        self._domain_paths = [domain_path] if domain_path else []
         self._story_paths = []
         self._nlu_paths = []
         self._imports = set()
@@ -45,7 +42,7 @@ class SkillSelector(TrainingDataImporter):
 
         logger.debug(
             "Selected skills: {}".format(
-                "".join(["\n-{}".format(i) for i in self._imports])
+                "".join([f"\n-{i}" for i in self._imports])
             )
         )
 
@@ -63,9 +60,7 @@ class SkillSelector(TrainingDataImporter):
             parent_directory = os.path.dirname(path)
             self._init_from_dict(config, parent_directory)
         else:
-            logger.warning(
-                "'{}' does not exist or is not a valid config file.".format(path)
-            )
+            logger.warning(f"'{path}' does not exist or is not a valid config file.")
 
     def _init_from_dict(self, _dict: Dict[Text, Any], parent_directory: Text) -> None:
         imports = _dict.get("imports") or []
@@ -136,12 +131,11 @@ class SkillSelector(TrainingDataImporter):
         )
 
     def _is_in_project_directory(self, path: Text) -> bool:
-        if os.path.isfile(path):
-            parent_directory = os.path.abspath(os.path.dirname(path))
-
-            return parent_directory == self._project_directory
-        else:
+        if not os.path.isfile(path):
             return path == self._project_directory
+        parent_directory = os.path.abspath(os.path.dirname(path))
+
+        return parent_directory == self._project_directory
 
     def _is_in_additional_paths(self, path: Text) -> bool:
         included = path in self._additional_paths
@@ -153,7 +147,7 @@ class SkillSelector(TrainingDataImporter):
         return included
 
     def _is_in_imported_paths(self, path):
-        return any([io_utils.is_subdirectory(path, i) for i in self._imports])
+        return any(io_utils.is_subdirectory(path, i) for i in self._imports)
 
     def add_import(self, path: Text) -> None:
         self._imports.add(path)

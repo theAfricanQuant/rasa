@@ -24,9 +24,8 @@ class LUISEmulator(NoEmulator):
                 {"intent": el["name"], "score": el["confidence"]}
                 for el in data["intent_ranking"]
             ]
-        else:
-            top = self._top_intent(data)
-            return [top] if top else []
+        top = self._top_intent(data)
+        return [top] if top else []
 
     def normalise_response_json(self, data: Dict[Text, Any]) -> Dict[Text, Any]:
         """Transform data to luis.ai format."""

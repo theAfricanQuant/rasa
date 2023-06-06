@@ -58,13 +58,11 @@ def run_actions(args: argparse.Namespace):
 def _validate_model_path(model_path: Text, parameter: Text, default: Text):
 
     if model_path is not None and not os.path.exists(model_path):
-        reason_str = "'{}' not found.".format(model_path)
+        reason_str = f"'{model_path}' not found."
         if model_path is None:
-            reason_str = "Parameter '{}' not set.".format(parameter)
+            reason_str = f"Parameter '{parameter}' not set."
 
-        logger.debug(
-            "{} Using default location '{}' instead.".format(reason_str, default)
-        )
+        logger.debug(f"{reason_str} Using default location '{default}' instead.")
 
         os.makedirs(default, exist_ok=True)
         model_path = default
@@ -120,14 +118,5 @@ def run(args: argparse.Namespace):
         return
 
     print_error(
-        "No model found. You have three options to provide a model:\n"
-        "1. Configure a model server in the endpoint configuration and provide "
-        "the configuration via '--endpoints'.\n"
-        "2. Specify a remote storage via '--remote-storage' to load the model "
-        "from.\n"
-        "3. Train a model before running the server using `rasa train` and "
-        "use '--model' to provide the model path.\n"
-        "For more information check {}.".format(
-            DOCS_BASE_URL + "/user-guide/running-the-server/"
-        )
+        f"No model found. You have three options to provide a model:\n1. Configure a model server in the endpoint configuration and provide the configuration via '--endpoints'.\n2. Specify a remote storage via '--remote-storage' to load the model from.\n3. Train a model before running the server using `rasa train` and use '--model' to provide the model path.\nFor more information check {DOCS_BASE_URL}/user-guide/running-the-server/."
     )

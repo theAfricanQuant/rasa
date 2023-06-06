@@ -29,22 +29,18 @@ class RasaChatInput(RestInput):
         self.base_url = url
 
     async def _check_token(self, token):
-        url = "{}/auth/verify".format(self.base_url)
+        url = f"{self.base_url}/auth/verify"
         headers = {"Authorization": token}
-        logger.debug("Requesting user information from auth server {}.".format(url))
+        logger.debug(f"Requesting user information from auth server {url}.")
 
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT
-            ) as resp:
+                        url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT
+                    ) as resp:
                 if resp.status == 200:
                     return await resp.json()
-                else:
-                    logger.info(
-                        "Failed to check token: {}. "
-                        "Content: {}".format(token, await resp.text())
-                    )
-                    return None
+                logger.info(f"Failed to check token: {token}. Content: {await resp.text()}")
+                return None
 
     async def _extract_sender(self, req: Request) -> Optional[Text]:
         """Fetch user from the Rasa X Admin API"""

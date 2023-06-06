@@ -106,9 +106,7 @@ class CountVectorsFeaturizer(Featurizer):
         self.OOV_words = self.component_config["OOV_words"]
         if self.OOV_words and not self.OOV_token:
             logger.error(
-                "The list OOV_words={} was given, but "
-                "OOV_token was not. OOV words are ignored."
-                "".format(self.OOV_words)
+                f"The list OOV_words={self.OOV_words} was given, but OOV_token was not. OOV words are ignored."
             )
             self.OOV_words = []
 
@@ -199,10 +197,7 @@ class CountVectorsFeaturizer(Featurizer):
                 ):
                     return
             logger.warning(
-                "OOV_token='{}' was given, but it is not present "
-                "in the training data. All unseen words "
-                "will be ignored during prediction."
-                "".format(self.OOV_token)
+                f"OOV_token='{self.OOV_token}' was given, but it is not present in the training data. All unseen words will be ignored during prediction."
             )
 
     def train(
@@ -272,7 +267,7 @@ class CountVectorsFeaturizer(Featurizer):
         Returns the metadata necessary to load the model again.
         """
 
-        file_name = file_name + ".pkl"
+        file_name = f"{file_name}.pkl"
         if self.vectorizer:
             featurizer_file = os.path.join(model_dir, file_name)
             utils.json_pickle(featurizer_file, self.vectorizer.vocabulary_)

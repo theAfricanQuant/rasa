@@ -24,8 +24,7 @@ async def visualize(
         policies = config.load(config_path)
     except ValueError as e:
         print_error(
-            "Could not load config due to: '{}'. To specify a valid config file use "
-            "the '--config' argument.".format(e)
+            f"Could not load config due to: '{e}'. To specify a valid config file use the '--config' argument."
         )
         return
 
@@ -33,8 +32,7 @@ async def visualize(
         agent = Agent(domain=domain_path, policies=policies)
     except InvalidDomain as e:
         print_error(
-            "Could not load domain due to: '{}'. To specify a valid domain path use "
-            "the '--domain' argument.".format(e)
+            f"Could not load domain due to: '{e}'. To specify a valid domain path use the '--domain' argument."
         )
         return
 
@@ -53,8 +51,8 @@ async def visualize(
         stories_path, output_path, max_history, nlu_training_data=nlu_data_path
     )
 
-    full_output_path = "file://{}".format(os.path.abspath(output_path))
-    logger.info("Finished graph creation. Saved into {}".format(full_output_path))
+    full_output_path = f"file://{os.path.abspath(output_path)}"
+    logger.info(f"Finished graph creation. Saved into {full_output_path}")
 
     import webbrowser
 

@@ -54,17 +54,15 @@ def get_model(model_path: Text = DEFAULT_MODELS_PATH) -> TempDirectoryPath:
     if not model_path:
         raise ModelNotFound("No path specified.")
     elif not os.path.exists(model_path):
-        raise ModelNotFound("No file or directory at '{}'.".format(model_path))
+        raise ModelNotFound(f"No file or directory at '{model_path}'.")
 
     if os.path.isdir(model_path):
         model_path = get_latest_model(model_path)
         if not model_path:
-            raise ModelNotFound(
-                "Could not find any Rasa model files in '{}'.".format(model_path)
-            )
+            raise ModelNotFound(f"Could not find any Rasa model files in '{model_path}'.")
     elif not model_path.endswith(".tar.gz"):
         raise ModelNotFound(
-            "Path '{}' does not point to a Rasa model file.".format(model_path)
+            f"Path '{model_path}' does not point to a Rasa model file."
         )
 
     return unpack_model(model_path)
@@ -85,10 +83,7 @@ def get_latest_model(model_path: Text = DEFAULT_MODELS_PATH) -> Optional[Text]:
 
     list_of_files = glob.glob(os.path.join(model_path, "*.tar.gz"))
 
-    if len(list_of_files) == 0:
-        return None
-
-    return max(list_of_files, key=os.path.getctime)
+    return None if not list_of_files else max(list_of_files, key=os.path.getctime)
 
 
 def unpack_model(
@@ -118,7 +113,7 @@ def unpack_model(
     # All files are in a subdirectory.
     tar.extractall(working_directory)
     tar.close()
-    logger.debug("Extracted model to '{}'.".format(working_directory))
+    logger.debug(f"Extracted model to '{working_directory}'.")
 
     return TempDirectoryPath(working_directory)
 
@@ -146,14 +141,12 @@ def get_model_subdirectories(
     if not os.path.isdir(nlu_path):
         nlu_path = None
 
-    if not core_path and not nlu_path:
+    if core_path or nlu_path:
+        return core_path, nlu_path
+    else:
         raise ModelNotFound(
-            "No NLU or Core data for unpacked model at: '{}'.".format(
-                unpacked_model_path
-            )
+            f"No NLU or Core data for unpacked model at: '{unpacked_model_path}'."
         )
-
-    return core_path, nlu_path
 
 
 def create_package_rasa(
@@ -236,7 +229,7 @@ def _get_hash_of_config(
 
     keys = include_keys or list(filter(lambda k: k not in exclude_keys, config.keys()))
 
-    sub_config = dict((k, config[k]) for k in keys if k in config)
+    sub_config = {k: config[k] for k in keys if k in config}
 
     return get_dict_hash(sub_config)
 
@@ -298,7 +291,7 @@ def core_fingerprint_changed(
 
     for k in relevant_keys:
         if fingerprint1.get(k) != fingerprint2.get(k):
-            logger.info("Data ({}) for Core model changed.".format(k))
+            logger.info(f"Data ({k}) for Core model changed.")
             return True
     return False
 
@@ -326,7 +319,7 @@ def nlu_fingerprint_changed(
 
     for k in relevant_keys:
         if fingerprint1.get(k) != fingerprint2.get(k):
-            logger.info("Data ({}) for NLU model changed.".format(k))
+            logger.info(f"Data ({k}) for NLU model changed.")
             return True
     return False
 
@@ -409,9 +402,7 @@ def package_model(
     create_package_rasa(train_path, output_directory, fingerprint)
 
     print_success(
-        "Your Rasa model is trained and saved at '{}'.".format(
-            os.path.abspath(output_directory)
-        )
+        f"Your Rasa model is trained and saved at '{os.path.abspath(output_directory)}'."
     )
 
     return output_directory

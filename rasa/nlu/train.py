@@ -37,12 +37,11 @@ class TrainingException(Exception):
 def create_persistor(persistor: Optional[Text]):
     """Create a remote persistor to store the model if configured."""
 
-    if persistor is not None:
-        from rasa.nlu.persistor import get_persistor
-
-        return get_persistor(persistor)
-    else:
+    if persistor is None:
         return None
+    from rasa.nlu.persistor import get_persistor
+
+    return get_persistor(persistor)
 
 
 async def train(

@@ -66,7 +66,7 @@ class NGramFeaturizer(Featurizer):
 
         start = time.time()
         self.train_on_sentences(training_data.intent_examples)
-        logger.debug("Ngram collection took {} seconds".format(time.time() - start))
+        logger.debug(f"Ngram collection took {time.time() - start} seconds")
 
         for example in training_data.training_examples:
             updated = self._text_features_with_ngrams(example, self.best_num_ngrams)
@@ -109,7 +109,7 @@ class NGramFeaturizer(Featurizer):
     def persist(self, file_name: Text, model_dir: Text) -> Optional[Dict[Text, Any]]:
         """Persist this model into the passed directory."""
 
-        file_name = file_name + ".json"
+        file_name = f"{file_name}.json"
         featurizer_file = os.path.join(model_dir, file_name)
         data = {"all_ngrams": self.all_ngrams, "best_num_ngrams": self.best_num_ngrams}
 
@@ -143,10 +143,10 @@ class NGramFeaturizer(Featurizer):
         """Automatically removes words with digits in them, that may be a
         hyperlink or that _are_ in vocabulary for the nlp."""
 
-        new_sents = []
-        for example in examples:
-            new_sents.append(self._remove_in_vocab_words_from_sentence(example))
-        return new_sents
+        return [
+            self._remove_in_vocab_words_from_sentence(example)
+            for example in examples
+        ]
 
     @staticmethod
     def _is_ngram_worthy(token):
@@ -174,10 +174,7 @@ class NGramFeaturizer(Featurizer):
 
         # remove digits and extra spaces
         non_words = "".join([letter for letter in non_words if not letter.isdigit()])
-        non_words = " ".join([word for word in non_words.split(" ") if word != ""])
-
-        # add cleaned sentence to list of these sentences
-        return non_words
+        return " ".join([word for word in non_words.split(" ") if word != ""])
 
     def _intents_with_enough_examples(self, labels, examples):
         """Filter examples where we do not have a min number of examples."""
@@ -205,9 +202,7 @@ class NGramFeaturizer(Featurizer):
         # sort the ngrams according to the classification score
         scores = clf.scores_
         sorted_idxs = sorted(enumerate(scores), key=lambda x: -1 * x[1])
-        sorted_ngrams = [list_of_ngrams[i[0]] for i in sorted_idxs]
-
-        return sorted_ngrams
+        return [list_of_ngrams[i[0]] for i in sorted_idxs]
 
     def _sort_applicable_ngrams(self, ngrams_list, examples, labels):
         """Given an intent classification problem and a list of ngrams,
@@ -296,14 +291,14 @@ class NGramFeaturizer(Featurizer):
             for can in candidates:
                 if counters[n][can] >= min_count:
                     features[n].append(can)
-                    begin = can[:-1]
-                    end = can[1:]
                     if n >= ngram_min_length:
+                        begin = can[:-1]
                         if (
                             counters[n - 1][begin] == counters[n][can]
                             and begin in features[n - 1]
                         ):
                             features[n - 1].remove(begin)
+                        end = can[1:]
                         if (
                             counters[n - 1][end] == counters[n][can]
                             and end in features[n - 1]
@@ -323,10 +318,7 @@ class NGramFeaturizer(Featurizer):
         else:
             collected_features = []
 
-        if collected_features:
-            return np.stack(collected_features)
-        else:
-            return None
+        return np.stack(collected_features) if collected_features else None
 
     def _append_ngram_features(self, examples, existing_features, max_ngrams):
         ngrams_to_use = self._ngrams_to_use(max_ngrams)
@@ -407,12 +399,10 @@ class NGramFeaturizer(Featurizer):
                     examples, y, existing_text_features, cv_splits, max_ngrams=n
                 )
                 scores.append(score)
-                logger.debug(
-                    "Evaluating usage of {} ngrams. Score: {}".format(n, score)
-                )
+                logger.debug(f"Evaluating usage of {n} ngrams. Score: {score}")
 
             n_top = num_ngrams[np.argmax(scores)]
-            logger.info("Best score with {} ngrams: {}".format(n_top, np.max(scores)))
+            logger.info(f"Best score with {n_top} ngrams: {np.max(scores)}")
             return n_top.item()
         else:
             warnings.warn(

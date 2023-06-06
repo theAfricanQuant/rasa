@@ -102,14 +102,14 @@ async def test_random_seed(component_builder, tmpdir):
     # first run
     (trained_a, _, persisted_path_a) = await train(
         _config,
-        path=tmpdir.strpath + "_a",
+        path=f"{tmpdir.strpath}_a",
         data=DEFAULT_DATA_PATH,
         component_builder=component_builder,
     )
     # second run
     (trained_b, _, persisted_path_b) = await train(
         _config,
-        path=tmpdir.strpath + "_b",
+        path=f"{tmpdir.strpath}_b",
         data=DEFAULT_DATA_PATH,
         component_builder=component_builder,
     )

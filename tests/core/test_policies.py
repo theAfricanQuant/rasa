@@ -103,10 +103,9 @@ class PolicyTestCollection(object):
 
     @pytest.fixture(scope="module")
     def featurizer(self):
-        featurizer = MaxHistoryTrackerFeaturizer(
+        return MaxHistoryTrackerFeaturizer(
             BinarySingleStateFeaturizer(), max_history=self.max_history
         )
-        return featurizer
 
     @pytest.fixture(scope="module")
     def priority(self):
@@ -174,14 +173,12 @@ class PolicyTestCollection(object):
 
 class TestKerasPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = KerasPolicy(featurizer, priority)
-        return p
+        return KerasPolicy(featurizer, priority)
 
 
 class TestKerasPolicyWithTfConfig(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = KerasPolicy(featurizer, priority, **tf_defaults())
-        return p
+        return KerasPolicy(featurizer, priority, **tf_defaults())
 
     def test_tf_config(self, trained_policy, tmpdir):
         # noinspection PyProtectedMember
@@ -194,8 +191,7 @@ class TestKerasPolicyWithTfConfig(PolicyTestCollection):
 
 class TestFallbackPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = FallbackPolicy(priority=priority)
-        return p
+        return FallbackPolicy(priority=priority)
 
     @pytest.mark.parametrize(
         "top_confidence, all_confidences, last_action_name, should_nlu_fallback",
@@ -231,8 +227,7 @@ class TestFallbackPolicy(PolicyTestCollection):
 
 class TestMappingPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = MappingPolicy()
-        return p
+        return MappingPolicy()
 
     @pytest.fixture(scope="module")
     def domain_with_mapping(self):
@@ -300,8 +295,7 @@ class TestMemoizationPolicy(PolicyTestCollection):
         max_history = None
         if isinstance(featurizer, MaxHistoryTrackerFeaturizer):
             max_history = featurizer.max_history
-        p = MemoizationPolicy(priority=priority, max_history=max_history)
-        return p
+        return MemoizationPolicy(priority=priority, max_history=max_history)
 
     async def test_memorise(self, trained_policy, default_domain):
         trackers = await train_trackers(default_domain, augmentation_factor=20)
@@ -319,7 +313,7 @@ class TestMemoizationPolicy(PolicyTestCollection):
             assert recalled == default_domain.index_for_action(actions[0])
 
         nums = np.random.randn(default_domain.num_states)
-        random_states = [{f: num for f, num in zip(default_domain.input_states, nums)}]
+        random_states = [dict(zip(default_domain.input_states, nums))]
         assert trained_policy._recall_states(random_states) is None
 
         # compare augmentation for augmentation_factor of 0 and 20:
@@ -350,14 +344,12 @@ class TestAugmentedMemoizationPolicy(PolicyTestCollection):
         max_history = None
         if isinstance(featurizer, MaxHistoryTrackerFeaturizer):
             max_history = featurizer.max_history
-        p = AugmentedMemoizationPolicy(priority=priority, max_history=max_history)
-        return p
+        return AugmentedMemoizationPolicy(priority=priority, max_history=max_history)
 
 
 class TestSklearnPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority, **kwargs):
-        p = SklearnPolicy(featurizer, priority, **kwargs)
-        return p
+        return SklearnPolicy(featurizer, priority, **kwargs)
 
     @pytest.yield_fixture
     def mock_search(self):
@@ -479,50 +471,35 @@ class TestSklearnPolicy(PolicyTestCollection):
 
 class TestEmbeddingPolicyNoAttention(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using FullDialogueTrackerFeaturizer
-        p = EmbeddingPolicy(
+        return EmbeddingPolicy(
             priority=priority, attn_before_rnn=False, attn_after_rnn=False
         )
-        return p
 
 
 class TestEmbeddingPolicyAttentionBeforeRNN(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using FullDialogueTrackerFeaturizer
-        p = EmbeddingPolicy(
+        return EmbeddingPolicy(
             priority=priority, attn_before_rnn=True, attn_after_rnn=False
         )
-        return p
 
 
 class TestEmbeddingPolicyAttentionAfterRNN(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using FullDialogueTrackerFeaturizer
-        p = EmbeddingPolicy(
+        return EmbeddingPolicy(
             priority=priority, attn_before_rnn=False, attn_after_rnn=True
         )
-        return p
 
 
 class TestEmbeddingPolicyAttentionBoth(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using FullDialogueTrackerFeaturizer
-        p = EmbeddingPolicy(
+        return EmbeddingPolicy(
             priority=priority, attn_before_rnn=True, attn_after_rnn=True
         )
-        return p
 
 
 class TestEmbeddingPolicyWithTfConfig(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        # use standard featurizer from EmbeddingPolicy,
-        # since it is using FullDialogueTrackerFeaturizer
-        p = EmbeddingPolicy(priority=priority, **tf_defaults())
-        return p
+        return EmbeddingPolicy(priority=priority, **tf_defaults())
 
     def test_tf_config(self, trained_policy, tmpdir):
         # noinspection PyProtectedMember
@@ -535,8 +512,7 @@ class TestEmbeddingPolicyWithTfConfig(PolicyTestCollection):
 
 class TestFormPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = FormPolicy(priority=priority)
-        return p
+        return FormPolicy(priority=priority)
 
     async def test_memorise(self, trained_policy):
         domain = Domain.load("data/test_domains/form.yml")
@@ -583,26 +559,22 @@ class TestFormPolicy(PolicyTestCollection):
             else:
                 is_no_validation = False
 
-            if "intent_start_form" in states[-1]:
+            if "intent_start_form" in states[-1] or not is_no_validation:
                 # explicitly check that intent that starts the form
                 # is not memorized as non validation intent
                 assert recalled is None
-            elif is_no_validation:
-                assert recalled == active_form
             else:
-                assert recalled is None
-
+                assert recalled == active_form
         nums = np.random.randn(domain.num_states)
-        random_states = [{f: num for f, num in zip(domain.input_states, nums)}]
+        random_states = [dict(zip(domain.input_states, nums))]
         assert trained_policy.recall(random_states, None, domain) is None
 
 
 class TestTwoStageFallbackPolicy(PolicyTestCollection):
     def create_policy(self, featurizer, priority):
-        p = TwoStageFallbackPolicy(
+        return TwoStageFallbackPolicy(
             priority=priority, deny_suggestion_intent_name="deny"
         )
-        return p
 
     @pytest.fixture(scope="class")
     def default_domain(self):

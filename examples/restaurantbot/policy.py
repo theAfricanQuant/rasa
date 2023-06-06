@@ -44,10 +44,7 @@ class RestaurantPolicy(KerasPolicy):
             model.add(TimeDistributed(Dense(units=output_shape[-1])))
         else:
             raise ValueError(
-                "Cannot construct the model because"
-                "length of output_shape = {} "
-                "should be 1 or 2."
-                "".format(len(output_shape))
+                f"Cannot construct the model becauselength of output_shape = {len(output_shape)} should be 1 or 2."
             )
 
         model.add(Activation("softmax"))

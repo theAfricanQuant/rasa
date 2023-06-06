@@ -75,14 +75,14 @@ def test_policy_priority():
     result, best_policy = policy_ensemble_0.probabilities_using_best_policy(
         tracker, domain
     )
-    assert best_policy == "policy_{}_{}".format(i, type(priority_2).__name__)
+    assert best_policy == f"policy_{i}_{type(priority_2).__name__}"
     assert result == priority_2_result
 
     i = 0  # index of priority_2 in ensemble_1
     result, best_policy = policy_ensemble_1.probabilities_using_best_policy(
         tracker, domain
     )
-    assert best_policy == "policy_{}_{}".format(i, type(priority_2).__name__)
+    assert best_policy == f"policy_{i}_{type(priority_2).__name__}"
     assert result == priority_2_result
 
 

@@ -106,7 +106,6 @@ class MattermostInput(InputChannel):
                         "Exception when trying to handle message.{0}".format(e)
                     )
                     logger.debug(e, exc_info=True)
-                    pass
             return response.text("")
 
         return mattermost_webhook

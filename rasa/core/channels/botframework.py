@@ -40,57 +40,54 @@ class BotFramework(OutputChannel):
         self.app_id = app_id
         self.app_password = app_password
         self.conversation = conversation
-        self.global_uri = "{}v3/".format(service_url)
+        self.global_uri = f"{service_url}v3/"
         self.bot = bot
 
     async def _get_headers(self):
-        if BotFramework.token_expiration_date < datetime.datetime.now():
-            uri = "{}/{}".format(MICROSOFT_OAUTH2_URL, MICROSOFT_OAUTH2_PATH)
-            grant_type = "client_credentials"
-            scope = "https://api.botframework.com/.default"
-            payload = {
-                "client_id": self.app_id,
-                "client_secret": self.app_password,
-                "grant_type": grant_type,
-                "scope": scope,
-            }
-
-            token_response = requests.post(uri, data=payload)
-
-            if token_response.ok:
-                token_data = token_response.json()
-                access_token = token_data["access_token"]
-                token_expiration = token_data["expires_in"]
-
-                delta = datetime.timedelta(seconds=int(token_expiration))
-                BotFramework.token_expiration_date = datetime.datetime.now() + delta
-
-                BotFramework.headers = {
-                    "content-type": "application/json",
-                    "Authorization": "Bearer %s" % access_token,
-                }
-                return BotFramework.headers
-            else:
-                logger.error("Could not get BotFramework token")
-        else:
+        if BotFramework.token_expiration_date >= datetime.datetime.now():
             return BotFramework.headers
+        uri = f"{MICROSOFT_OAUTH2_URL}/{MICROSOFT_OAUTH2_PATH}"
+        grant_type = "client_credentials"
+        scope = "https://api.botframework.com/.default"
+        payload = {
+            "client_id": self.app_id,
+            "client_secret": self.app_password,
+            "grant_type": grant_type,
+            "scope": scope,
+        }
+
+        token_response = requests.post(uri, data=payload)
+
+        if token_response.ok:
+            token_data = token_response.json()
+            access_token = token_data["access_token"]
+            token_expiration = token_data["expires_in"]
+
+            delta = datetime.timedelta(seconds=int(token_expiration))
+            BotFramework.token_expiration_date = datetime.datetime.now() + delta
+
+            BotFramework.headers = {
+                "content-type": "application/json",
+                "Authorization": f"Bearer {access_token}",
+            }
+            return BotFramework.headers
+        else:
+            logger.error("Could not get BotFramework token")
 
     def prepare_message(
         self, recipient_id: Text, message_data: Dict[Text, Any]
     ) -> Dict[Text, Any]:
-        data = {
+        return {
             "type": "message",
             "recipient": {"id": recipient_id},
             "from": self.bot,
             "channelData": {"notification": {"alert": "true"}},
             "text": "",
-        }
-        data.update(message_data)
-        return data
+        } | message_data
 
     async def send(self, message_data: Dict[Text, Any]) -> None:
-        post_message_uri = "{}conversations/{}/activities".format(
-            self.global_uri, self.conversation["id"]
+        post_message_uri = (
+            f'{self.global_uri}conversations/{self.conversation["id"]}/activities'
         )
         headers = await self._get_headers()
         send_response = requests.post(
@@ -221,8 +218,6 @@ class BotFrameworkInput(InputChannel):
             except Exception as e:
                 logger.error("Exception when trying to handle message.{0}".format(e))
                 logger.debug(e, exc_info=True)
-                pass
-
             return response.text("success")
 
         return botframework_webhook

@@ -84,8 +84,7 @@ class TelegramOutput(Bot, OutputChannel):
             )
         else:
             logger.error(
-                "Trying to send text with buttons for unknown "
-                "button type {}".format(button_type)
+                f"Trying to send text with buttons for unknown button type {button_type}"
             )
             return
 
@@ -123,7 +122,7 @@ class TelegramOutput(Bot, OutputChannel):
             ): "send_invoice",
         }
 
-        for params in send_functions.keys():
+        for params in send_functions:
             if all(json_message.get(p) is not None for p in params):
                 args = [json_message.pop(p) for p in params]
                 api_call = getattr(self, send_functions[params])
@@ -186,58 +185,56 @@ class TelegramInput(InputChannel):
 
         @telegram_webhook.route("/webhook", methods=["GET", "POST"])
         async def message(request: Request):
-            if request.method == "POST":
+            if request.method != "POST":
+                return
+            if out_channel.get_me()["username"] != self.verify:
+                logger.debug("Invalid access token, check it matches Telegram")
+                return response.text("failed")
 
-                if not out_channel.get_me()["username"] == self.verify:
-                    logger.debug("Invalid access token, check it matches Telegram")
-                    return response.text("failed")
-
-                update = Update.de_json(request.json, out_channel)
-                if self._is_button(update):
-                    msg = update.callback_query.message
-                    text = update.callback_query.data
-                else:
-                    msg = update.message
-                    if self._is_user_message(msg):
-                        text = msg.text.replace("/bot", "")
-                    elif self._is_location(msg):
-                        text = '{{"lng":{0}, "lat":{1}}}'.format(
-                            msg.location.longitude, msg.location.latitude
-                        )
-                    else:
-                        return response.text("success")
-                sender_id = msg.chat.id
-                try:
-                    if text == (INTENT_MESSAGE_PREFIX + USER_INTENT_RESTART):
-                        await on_new_message(
-                            UserMessage(
-                                text, out_channel, sender_id, input_channel=self.name()
-                            )
-                        )
-                        await on_new_message(
-                            UserMessage(
-                                "/start",
-                                out_channel,
-                                sender_id,
-                                input_channel=self.name(),
-                            )
-                        )
-                    else:
-                        await on_new_message(
-                            UserMessage(
-                                text, out_channel, sender_id, input_channel=self.name()
-                            )
-                        )
-                except Exception as e:
-                    logger.error(
-                        "Exception when trying to handle message.{0}".format(e)
+            update = Update.de_json(request.json, out_channel)
+            if self._is_button(update):
+                msg = update.callback_query.message
+                text = update.callback_query.data
+            else:
+                msg = update.message
+                if self._is_user_message(msg):
+                    text = msg.text.replace("/bot", "")
+                elif self._is_location(msg):
+                    text = '{{"lng":{0}, "lat":{1}}}'.format(
+                        msg.location.longitude, msg.location.latitude
                     )
-                    logger.debug(e, exc_info=True)
-                    if self.debug_mode:
-                        raise
-                    pass
-
-                return response.text("success")
+                else:
+                    return response.text("success")
+            sender_id = msg.chat.id
+            try:
+                if text == (INTENT_MESSAGE_PREFIX + USER_INTENT_RESTART):
+                    await on_new_message(
+                        UserMessage(
+                            text, out_channel, sender_id, input_channel=self.name()
+                        )
+                    )
+                    await on_new_message(
+                        UserMessage(
+                            "/start",
+                            out_channel,
+                            sender_id,
+                            input_channel=self.name(),
+                        )
+                    )
+                else:
+                    await on_new_message(
+                        UserMessage(
+                            text, out_channel, sender_id, input_channel=self.name()
+                        )
+                    )
+            except Exception as e:
+                logger.error(
+                    "Exception when trying to handle message.{0}".format(e)
+                )
+                logger.debug(e, exc_info=True)
+                if self.debug_mode:
+                    raise
+            return response.text("success")
 
         return telegram_webhook
 

@@ -88,7 +88,7 @@ async def train_comparison_models(
     policy_configs = policy_configs or []
 
     for r in range(runs):
-        logging.info("Starting run {}/{}".format(r + 1, runs))
+        logging.info(f"Starting run {r + 1}/{runs}")
 
         for current_run, percentage in enumerate(exclusion_percentages, 1):
             for policy_config in policy_configs:
@@ -105,11 +105,7 @@ async def train_comparison_models(
 
                 policy_name = type(policies[0]).__name__
                 logging.info(
-                    "Starting to train {} round {}/{}"
-                    " with {}% exclusion"
-                    "".format(
-                        policy_name, current_run, len(exclusion_percentages), percentage
-                    )
+                    f"Starting to train {policy_name} round {current_run}/{len(exclusion_percentages)} with {percentage}% exclusion"
                 )
 
                 with TempDirectoryPath(tempfile.mkdtemp()) as train_path:
@@ -125,7 +121,7 @@ async def train_comparison_models(
 
                     new_fingerprint = await model.model_fingerprint(file_importer)
 
-                    output_dir = os.path.join(output_path, "run_" + str(r + 1))
+                    output_dir = os.path.join(output_path, f"run_{str(r + 1)}")
                     model_name = policy_name + str(current_run)
                     model.package_model(
                         fingerprint=new_fingerprint,

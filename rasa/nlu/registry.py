@@ -125,9 +125,7 @@ registered_pipeline_templates = {
 
 
 def pipeline_template(s: Text) -> Optional[List[Dict[Text, Any]]]:
-    components = registered_pipeline_templates.get(s)
-
-    if components:
+    if components := registered_pipeline_templates.get(s):
         # converts the list of components in the configuration
         # format expected (one json object per component)
         return [{"name": c.get("name"), **c.get("config", {})} for c in components]
@@ -145,21 +143,12 @@ def get_component_class(component_name: Text) -> Type["Component"]:
                 return class_from_module_path(component_name)
             except Exception:
                 raise Exception(
-                    "Failed to find component class for '{}'. Unknown "
-                    "component name. Check your configured pipeline and make "
-                    "sure the mentioned component is not misspelled. If you "
-                    "are creating your own component, make sure it is either "
-                    "listed as part of the `component_classes` in "
-                    "`rasa.nlu.registry.py` or is a proper name of a class "
-                    "in a module.".format(component_name)
+                    f"Failed to find component class for '{component_name}'. Unknown component name. Check your configured pipeline and make sure the mentioned component is not misspelled. If you are creating your own component, make sure it is either listed as part of the `component_classes` in `rasa.nlu.registry.py` or is a proper name of a class in a module."
                 )
         else:
             # DEPRECATED ensures compatibility, remove in future versions
             logger.warning(
-                "DEPRECATION warning: your nlu config file "
-                "contains old style component name `{}`, "
-                "you should change it to its class name: `{}`."
-                "".format(component_name, old_style_names[component_name])
+                f"DEPRECATION warning: your nlu config file contains old style component name `{component_name}`, you should change it to its class name: `{old_style_names[component_name]}`."
             )
             component_name = old_style_names[component_name]
 

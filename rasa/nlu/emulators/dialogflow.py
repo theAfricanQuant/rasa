@@ -17,7 +17,7 @@ class DialogflowEmulator(NoEmulator):
         # populate entities dict
         entities = {
             entity_type: []
-            for entity_type in set([x["entity"] for x in data["entities"]])
+            for entity_type in {x["entity"] for x in data["entities"]}
         }
 
         for entity in data["entities"]:

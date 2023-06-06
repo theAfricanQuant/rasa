@@ -86,10 +86,9 @@ def _rasa_service(
 def _prepare_credentials_for_rasa_x(
     credentials_path: Optional[Text], rasa_x_url: Optional[Text] = None
 ) -> Text:
-    credentials_path = get_validated_path(
+    if credentials_path := get_validated_path(
         credentials_path, "credentials", DEFAULT_CREDENTIALS_PATH, True
-    )
-    if credentials_path:
+    ):
         credentials = io_utils.read_config_file(credentials_path)
     else:
         credentials = {}
@@ -98,9 +97,7 @@ def _prepare_credentials_for_rasa_x(
     if rasa_x_url:
         credentials["rasa"] = {"url": rasa_x_url}
     dumped_credentials = yaml.dump(credentials, default_flow_style=False)
-    tmp_credentials = io_utils.create_temporary_file(dumped_credentials, "yml")
-
-    return tmp_credentials
+    return io_utils.create_temporary_file(dumped_credentials, "yml")
 
 
 def _overwrite_endpoints_for_local_x(
@@ -110,7 +107,7 @@ def _overwrite_endpoints_for_local_x(
     import questionary
 
     endpoints.model = EndpointConfig(
-        "{}/projects/default/models/tags/production".format(rasa_x_url),
+        f"{rasa_x_url}/projects/default/models/tags/production",
         token=rasa_x_token,
         wait_time_between_pulls=2,
     )
@@ -118,10 +115,7 @@ def _overwrite_endpoints_for_local_x(
     overwrite_existing_event_broker = False
     if endpoints.event_broker and not _is_correct_event_broker(endpoints.event_broker):
         print_error(
-            "Rasa X currently only supports a SQLite event broker with path '{}' "
-            "when running locally. You can deploy Rasa X with Docker "
-            "(https://rasa.com/docs/rasa-x/deploy/) if you want to use "
-            "other event broker configurations.".format(DEFAULT_EVENTS_DB)
+            f"Rasa X currently only supports a SQLite event broker with path '{DEFAULT_EVENTS_DB}' when running locally. You can deploy Rasa X with Docker (https://rasa.com/docs/rasa-x/deploy/) if you want to use other event broker configurations."
         )
         overwrite_existing_event_broker = questionary.confirm(
             "Do you want to continue with the default SQLite event broker?"
@@ -155,7 +149,7 @@ def start_rasa_for_local_rasa_x(args: argparse.Namespace, rasa_x_token: Text):
 
     endpoints = AvailableEndpoints.read_endpoints(args.endpoints)
 
-    rasa_x_url = "http://localhost:{}/api".format(args.rasa_x_port)
+    rasa_x_url = f"http://localhost:{args.rasa_x_port}/api"
     _overwrite_endpoints_for_local_x(endpoints, rasa_x_token, rasa_x_url)
 
     vars(args).update(
@@ -215,7 +209,7 @@ def _configure_logging(args: argparse.Namespace):
     logging.getLogger("pika").setLevel(logging.WARNING)
     logging.getLogger("socketio").setLevel(logging.ERROR)
 
-    if not log_level == logging.DEBUG:
+    if log_level != logging.DEBUG:
         logging.getLogger().setLevel(logging.WARNING)
         logging.getLogger("py.warnings").setLevel(logging.ERROR)
 
@@ -223,11 +217,9 @@ def _configure_logging(args: argparse.Namespace):
 def is_rasa_project_setup(project_path: Text):
     mandatory_files = [DEFAULT_CONFIG_PATH, DEFAULT_DOMAIN_PATH]
 
-    for f in mandatory_files:
-        if not os.path.exists(os.path.join(project_path, f)):
-            return False
-
-    return True
+    return all(
+        os.path.exists(os.path.join(project_path, f)) for f in mandatory_files
+    )
 
 
 def _validate_rasa_x_start(args: argparse.Namespace, project_path: Text):
@@ -242,12 +234,7 @@ def _validate_rasa_x_start(args: argparse.Namespace, project_path: Text):
 
     if args.port == args.rasa_x_port:
         print_error(
-            "The port for Rasa X '{}' and the port of the Rasa server '{}' are the "
-            "same. We need two different ports, one to run Rasa X (e.g. delivering the "
-            "UI) and another one to run a normal Rasa server.\nPlease specify two "
-            "different ports using the arguments '--port' and '--rasa-x-port'.".format(
-                args.rasa_x_port, args.port
-            )
+            f"The port for Rasa X '{args.rasa_x_port}' and the port of the Rasa server '{args.port}' are the same. We need two different ports, one to run Rasa X (e.g. delivering the UI) and another one to run a normal Rasa server.\nPlease specify two different ports using the arguments '--port' and '--rasa-x-port'."
         )
         sys.exit(1)
 
@@ -263,8 +250,7 @@ def _validate_rasa_x_start(args: argparse.Namespace, project_path: Text):
 
     if args.data and not os.path.exists(args.data):
         print_warning(
-            "The provided data path ('{}') does not exists. Rasa X will start "
-            "without any training data.".format(args.data)
+            f"The provided data path ('{args.data}') does not exists. Rasa X will start without any training data."
         )
 
 
@@ -274,7 +260,7 @@ def _validate_domain(domain_path: Text):
     try:
         Domain.load(domain_path)
     except InvalidDomain as e:
-        print_error("The provided domain file could not be loaded. Error: {}".format(e))
+        print_error(f"The provided domain file could not be loaded. Error: {e}")
         sys.exit(1)
 
 

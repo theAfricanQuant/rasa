@@ -12,16 +12,16 @@ class WitEmulator(NoEmulator):
     def normalise_response_json(self, data: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         """Transform data to wit.ai format."""
 
-        entities = {}
-        for entity in data["entities"]:
-            entities[entity["entity"]] = {
+        entities = {
+            entity["entity"]: {
                 "confidence": None,
                 "type": "value",
                 "value": entity["value"],
                 "start": entity["start"],
                 "end": entity["end"],
             }
-
+            for entity in data["entities"]
+        }
         return [
             {
                 "_text": data["text"],

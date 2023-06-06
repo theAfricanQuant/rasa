@@ -290,11 +290,7 @@ def set_fingerprint(
     unpacked_model_path = get_model(trained_model)
 
     os.remove(os.path.join(unpacked_model_path, FINGERPRINT_FILE_PATH))
-    if use_fingerprint:
-        fingerprint = fingerprint
-    else:
-        fingerprint = None
-
+    fingerprint = fingerprint if use_fingerprint else None
     tempdir = tempfile.mkdtemp()
     output_path = os.path.join(tempdir, "test.tar.gz")
 

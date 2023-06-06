@@ -53,7 +53,6 @@ async def test_training_script(tmpdir):
         interpreter=RegexInterpreter(),
         kwargs={},
     )
-    assert True
 
 
 async def test_training_script_without_max_history_set(tmpdir):
@@ -105,7 +104,6 @@ async def test_training_script_with_restart_stories(tmpdir):
         policy_config="data/test_config/max_hist_config.yml",
         kwargs={},
     )
-    assert True
 
 
 def configs_for_random_seed_test():
@@ -123,7 +121,7 @@ async def test_random_seed(tmpdir, config_file):
     agent_1 = await train(
         DEFAULT_DOMAIN_PATH_WITH_SLOTS,
         DEFAULT_STORIES_FILE,
-        tmpdir.strpath + "1",
+        f"{tmpdir.strpath}1",
         interpreter=RegexInterpreter(),
         policy_config=config_file,
         kwargs={},
@@ -132,7 +130,7 @@ async def test_random_seed(tmpdir, config_file):
     agent_2 = await train(
         DEFAULT_DOMAIN_PATH_WITH_SLOTS,
         DEFAULT_STORIES_FILE,
-        tmpdir.strpath + "2",
+        f"{tmpdir.strpath}2",
         interpreter=RegexInterpreter(),
         policy_config=config_file,
         kwargs={},

@@ -39,19 +39,11 @@ class EntityExtractor(Component):
         ends = [token.end for token in tokens]
 
         if ent["start"] not in offsets:
-            message = (
-                "Invalid entity {} in example '{}': "
-                "entities must span whole tokens. "
-                "Wrong entity start.".format(ent, text)
-            )
+            message = f"Invalid entity {ent} in example '{text}': entities must span whole tokens. Wrong entity start."
             raise ValueError(message)
 
         if ent["end"] not in ends:
-            message = (
-                "Invalid entity {} in example '{}': "
-                "entities must span whole tokens. "
-                "Wrong entity end.".format(ent, text)
-            )
+            message = f"Invalid entity {ent} in example '{text}': entities must span whole tokens. Wrong entity end."
             raise ValueError(message)
 
         start = offsets.index(ent["start"])

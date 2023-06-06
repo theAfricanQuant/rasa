@@ -134,7 +134,7 @@ async def send_message(
     return await endpoint.request(
         json=payload,
         method="post",
-        subpath="/conversations/{}/messages".format(sender_id),
+        subpath=f"/conversations/{sender_id}/messages",
     )
 
 
@@ -144,7 +144,7 @@ async def request_prediction(
     """Request the next action prediction from core."""
 
     return await endpoint.request(
-        method="post", subpath="/conversations/{}/predict".format(sender_id)
+        method="post", subpath=f"/conversations/{sender_id}/predict"
     )
 
 
@@ -169,9 +169,7 @@ async def retrieve_tracker(
 ) -> Dict[Text, Any]:
     """Retrieve a tracker from core."""
 
-    path = "/conversations/{}/tracker?include_events={}".format(
-        sender_id, verbosity.name
-    )
+    path = f"/conversations/{sender_id}/tracker?include_events={verbosity.name}"
     return await endpoint.request(
         method="get", subpath=path, headers={"Accept": "application/json"}
     )
@@ -189,7 +187,7 @@ async def send_action(
 
     payload = ActionExecuted(action_name, policy, confidence).as_dict()
 
-    subpath = "/conversations/{}/execute".format(sender_id)
+    subpath = f"/conversations/{sender_id}/execute"
 
     try:
         return await endpoint.request(json=payload, method="post", subpath=subpath)
@@ -205,20 +203,11 @@ async def send_action(
                     "You do not need to do anything further. "
                     "".format(action_name, [*NEW_TEMPLATES[action_name]][0])
                 )
-                await _ask_questions(warning_questions, sender_id, endpoint)
             else:
                 warning_questions = questionary.confirm(
-                    "WARNING: You have created a new action: '{}', "
-                    "which was not successfully executed. "
-                    "If this action does not return any events, "
-                    "you do not need to do anything. "
-                    "If this is a custom action which returns events, "
-                    "you are recommended to implement this action "
-                    "in your action server and try again."
-                    "".format(action_name)
+                    f"WARNING: You have created a new action: '{action_name}', which was not successfully executed. If this action does not return any events, you do not need to do anything. If this is a custom action which returns events, you are recommended to implement this action in your action server and try again."
                 )
-                await _ask_questions(warning_questions, sender_id, endpoint)
-
+            await _ask_questions(warning_questions, sender_id, endpoint)
             payload = ActionExecuted(action_name).as_dict()
             return await send_event(endpoint, sender_id, payload)
         else:
@@ -233,7 +222,7 @@ async def send_event(
 ) -> Dict[Text, Any]:
     """Log an event to a conversation."""
 
-    subpath = "/conversations/{}/tracker/events".format(sender_id)
+    subpath = f"/conversations/{sender_id}/tracker/events"
 
     return await endpoint.request(json=evt, method="post", subpath=subpath)
 
@@ -278,10 +267,14 @@ def format_bot_output(message: BotUttered) -> Text:
 def latest_user_message(events: List[Dict[Text, Any]]) -> Optional[Dict[Text, Any]]:
     """Return most recent user message."""
 
-    for i, e in enumerate(reversed(events)):
-        if e.get("event") == UserUttered.type_name:
-            return e
-    return None
+    return next(
+        (
+            e
+            for e in reversed(events)
+            if e.get("event") == UserUttered.type_name
+        ),
+        None,
+    )
 
 
 def all_events_before_latest_user_msg(
@@ -289,10 +282,14 @@ def all_events_before_latest_user_msg(
 ) -> List[Dict[Text, Any]]:
     """Return all events that happened before the most recent user message."""
 
-    for i, e in enumerate(reversed(events)):
-        if e.get("event") == UserUttered.type_name:
-            return events[: -(i + 1)]
-    return events
+    return next(
+        (
+            events[: -(i + 1)]
+            for i, e in enumerate(reversed(events))
+            if e.get("event") == UserUttered.type_name
+        ),
+        events,
+    )
 
 
 async def _ask_questions(
@@ -354,11 +351,10 @@ async def _request_free_text_utterance(
 ) -> Text:
 
     question = questionary.text(
-        message=(
-            "Please type the message for your new utterance "
-            "template '{}':".format(action)
+        message=f"Please type the message for your new utterance template '{action}':",
+        validate=io_utils.not_empty_validator(
+            "Please enter a template message"
         ),
-        validate=io_utils.not_empty_validator("Please enter a template message"),
     )
     return await _ask_questions(question, sender_id, endpoint)
 
@@ -389,19 +385,16 @@ async def _request_fork_from_user(
 
     tracker = await retrieve_tracker(endpoint, sender_id, EventVerbosity.AFTER_RESTART)
 
-    choices = []
-    for i, e in enumerate(tracker.get("events", [])):
-        if e.get("event") == UserUttered.type_name:
-            choices.append({"name": e.get("text"), "value": i})
-
+    choices = [
+        {"name": e.get("text"), "value": i}
+        for i, e in enumerate(tracker.get("events", []))
+        if e.get("event") == UserUttered.type_name
+    ]
     fork_idx = await _request_fork_point_from_list(
         list(reversed(choices)), sender_id, endpoint
     )
 
-    if fork_idx is not None:
-        return tracker.get("events", [])[: int(fork_idx)]
-    else:
-        return None
+    return None if fork_idx is None else tracker.get("events", [])[: int(fork_idx)]
 
 
 async def _request_intent_from_user(
@@ -426,16 +419,15 @@ async def _request_intent_from_user(
 
     intent_name = await _request_selection_from_intents(choices, sender_id, endpoint)
 
-    if intent_name == OTHER_INTENT:
-        intent_name = await _request_free_text_intent(sender_id, endpoint)
-        selected_intent = {"name": intent_name, "confidence": 1.0}
-    else:
+    if intent_name != OTHER_INTENT:
         # returns the selected intent with the original probability value
-        selected_intent = next(
-            (x for x in predictions if x["name"] == intent_name), {"name": None}
+        return next(
+            (x for x in predictions if x["name"] == intent_name),
+            {"name": None},
         )
 
-    return selected_intent
+    intent_name = await _request_free_text_intent(sender_id, endpoint)
+    return {"name": intent_name, "confidence": 1.0}
 
 
 async def _print_history(sender_id: Text, endpoint: EndpointConfig) -> None:
@@ -455,7 +447,7 @@ async def _print_history(sender_id: Text, endpoint: EndpointConfig) -> None:
 
     if slot_strs:
         print ("\n")
-        print ("Current slots: \n\t{}\n".format(", ".join(slot_strs)))
+        print(f'Current slots: \n\t{", ".join(slot_strs)}\n')
 
     print ("------")
 
@@ -560,7 +552,7 @@ def _slot_history(tracker_dump: Dict[Text, Any]) -> List[Text]:
         colored_value = cliutils.wrap_with_color(
             str(s), color=rasa.cli.utils.bcolors.WARNING
         )
-        slot_strs.append("{}: {}".format(k, colored_value))
+        slot_strs.append(f"{k}: {colored_value}")
     return slot_strs
 
 
@@ -662,7 +654,7 @@ async def _request_action_from_user(
         is_new_action = True
         action_name = action_name[32:]
 
-    print ("Thanks! The bot will now run {}.\n".format(action_name))
+    print(f"Thanks! The bot will now run {action_name}.\n")
     return action_name, is_new_action
 
 
@@ -700,11 +692,10 @@ def _request_export_info() -> Tuple[Text, Text, Text]:
         ),
     )
 
-    answers = questions.ask()
-    if not answers:
+    if answers := questions.ask():
+        return (answers["export_stories"], answers["export_nlu"], answers["export_domain"])
+    else:
         raise Abort()
-
-    return (answers["export_stories"], answers["export_nlu"], answers["export_domain"])
 
 
 def _split_conversation_at_restarts(
@@ -751,9 +742,7 @@ def _collect_messages(events: List[Dict[Text, Any]]) -> List[Message]:
                     MitieEntityExtractor.__name__,
                 ]
                 logger.debug(
-                    "Exclude entity marking of following extractors"
-                    " {} when writing nlu data "
-                    "to file.".format(excluded_extractors)
+                    f"Exclude entity marking of following extractors {excluded_extractors} when writing nlu data to file."
                 )
 
                 if entity.get("extractor") in excluded_extractors:
@@ -783,17 +772,15 @@ async def _write_stories_to_file(
 
     io_utils.create_path(export_story_path)
 
-    if os.path.exists(export_story_path):
-        append_write = "a"  # append if already exists
-    else:
-        append_write = "w"  # make a new file if not
-
+    append_write = "a" if os.path.exists(export_story_path) else "w"
     with open(export_story_path, append_write, encoding="utf-8") as f:
         i = 1
         for conversation in sub_conversations:
             parsed_events = rasa.core.events.deserialise_events(conversation)
             tracker = DialogueStateTracker.from_events(
-                "interactive_story_{}".format(i), evts=parsed_events, slots=domain.slots
+                f"interactive_story_{i}",
+                evts=parsed_events,
+                slots=domain.slots,
             )
 
             if any(
@@ -816,7 +803,7 @@ async def _write_nlu_to_file(
         previous_examples = loading.load_data(export_nlu_path)
     except Exception as e:
         logger.debug(
-            "An exception occurred while trying to load the NLU data. {}".format(str(e))
+            f"An exception occurred while trying to load the NLU data. {str(e)}"
         )
         # No previous file exists, use empty training data as replacement.
         previous_examples = TrainingData()
@@ -845,10 +832,7 @@ def _entities_from_messages(messages):
 def _intents_from_messages(messages):
     """Return all intents that occur in at least one of the messages."""
 
-    # set of distinct intents
-    distinct_intents = {m.data["intent"] for m in messages if "intent" in m.data}
-
-    return distinct_intents
+    return {m.data["intent"] for m in messages if "intent" in m.data}
 
 
 async def _write_domain_to_file(
@@ -997,8 +981,7 @@ async def _confirm_form_validation(action_name, tracker, endpoint, sender_id):
     requested_slot = tracker.get("slots", {}).get(REQUESTED_SLOT)
 
     validation_questions = questionary.confirm(
-        "Should '{}' validate user input to fill "
-        "the slot '{}'?".format(action_name, requested_slot)
+        f"Should '{action_name}' validate user input to fill the slot '{requested_slot}'?"
     )
     validate_input = await _ask_questions(validation_questions, sender_id, endpoint)
 
@@ -1039,7 +1022,7 @@ async def _validate_action(
     Returns `True` if the prediction is correct, `False` otherwise."""
 
     question = questionary.confirm(
-        "The bot wants to run '{}', correct?".format(action_name)
+        f"The bot wants to run '{action_name}', correct?"
     )
 
     is_correct = await _ask_questions(question, sender_id, endpoint)
@@ -1099,10 +1082,7 @@ def _validate_user_regex(latest_message: Dict[Text, Any], intents: List[Text]) -
     parse_data = latest_message.get("parse_data", {})
     intent = parse_data.get("intent", {}).get("name")
 
-    if intent in intents:
-        return True
-    else:
-        return False
+    return intent in intents
 
 
 async def _validate_user_text(
@@ -1115,20 +1095,13 @@ async def _validate_user_text(
     parse_data = latest_message.get("parse_data", {})
     text = _as_md_message(parse_data)
     intent = parse_data.get("intent", {}).get("name")
-    entities = parse_data.get("entities", [])
-    if entities:
-        message = (
-            "Is the intent '{}' correct for '{}' and are "
-            "all entities labeled correctly?".format(intent, text)
-        )
+    if entities := parse_data.get("entities", []):
+        message = f"Is the intent '{intent}' correct for '{text}' and are all entities labeled correctly?"
     else:
-        message = (
-            "Your NLU model classified '{}' with intent '{}'"
-            " and there are no entities, is this correct?".format(text, intent)
-        )
+        message = f"Your NLU model classified '{text}' with intent '{intent}' and there are no entities, is this correct?"
 
     if intent is None:
-        print ("The NLU classification for '{}' returned '{}'".format(text, intent))
+        print(f"The NLU classification for '{text}' returned '{intent}'")
         return False
     else:
         question = questionary.confirm(message)
@@ -1192,11 +1165,9 @@ async def _correct_entities(
     # noinspection PyProtectedMember
     parse_annotated = MarkdownReader()._parse_training_example(annotation)
 
-    corrected_entities = _merge_annotated_and_original_entities(
+    return _merge_annotated_and_original_entities(
         parse_annotated, parse_original
     )
-
-    return corrected_entities
 
 
 def _merge_annotated_and_original_entities(parse_annotated, parse_original):
@@ -1234,7 +1205,7 @@ async def is_listening_for_message(sender_id: Text, endpoint: EndpointConfig) ->
 
     tracker = await retrieve_tracker(endpoint, sender_id, EventVerbosity.APPLIED)
 
-    for i, e in enumerate(reversed(tracker.get("events", []))):
+    for e in reversed(tracker.get("events", [])):
         if e.get("event") == UserUttered.type_name:
             return False
         elif e.get("event") == ActionExecuted.type_name:
@@ -1249,7 +1220,7 @@ async def _undo_latest(sender_id: Text, endpoint: EndpointConfig) -> None:
 
     # Get latest `UserUtterance` or `ActionExecuted` event.
     last_event_type = None
-    for i, e in enumerate(reversed(tracker.get("events", []))):
+    for e in reversed(tracker.get("events", [])):
         last_event_type = e.get("event")
         if last_event_type in {ActionExecuted.type_name, UserUttered.type_name}:
             break
@@ -1324,17 +1295,14 @@ def _print_help(skip_visualization: bool) -> None:
 
     if not skip_visualization:
         visualization_url = DEFAULT_SERVER_FORMAT.format(DEFAULT_SERVER_PORT + 1)
-        visualization_help = "Visualisation at {}/visualization.html.".format(
-            visualization_url
+        visualization_help = (
+            f"Visualisation at {visualization_url}/visualization.html."
         )
     else:
         visualization_help = ""
 
     rasa.cli.utils.print_success(
-        "Bot loaded. {}\n"
-        "Type a message and press enter "
-        "(press 'Ctr-c' to exit). "
-        "".format(visualization_help)
+        f"Bot loaded. {visualization_help}\nType a message and press enter (press 'Ctr-c' to exit). "
     )
 
 
@@ -1356,8 +1324,7 @@ async def record_messages(
             domain = await retrieve_domain(endpoint)
         except ClientError:
             logger.exception(
-                "Failed to connect to Rasa Core server at '{}'. "
-                "Is the server running?".format(endpoint.url)
+                f"Failed to connect to Rasa Core server at '{endpoint.url}'. Is the server running?"
             )
             return
 
@@ -1505,16 +1472,15 @@ async def wait_til_server_is_running(endpoint, max_retries=30, sleep_between_ret
     while max_retries:
         try:
             r = await retrieve_status(endpoint)
-            logger.info("Reached core: {}".format(r))
-            if not r.get("is_ready"):
-                # server did not finish loading the agent yet
-                # in this case, we need to wait till the model trained
-                # so we might be sleeping for a while...
-                await asyncio.sleep(sleep_between_retries)
-                continue
-            else:
+            logger.info(f"Reached core: {r}")
+            if r.get("is_ready"):
                 # server is ready to go
                 return True
+            # server did not finish loading the agent yet
+            # in this case, we need to wait till the model trained
+            # so we might be sleeping for a while...
+            await asyncio.sleep(sleep_between_retries)
+            continue
         except ClientError:
             max_retries -= 1
             if max_retries:

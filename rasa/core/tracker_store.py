@@ -50,7 +50,7 @@ class TrackerStore(object):
         else:
             tracker_store = TrackerStore.load_tracker_from_module_string(domain, store)
 
-        logger.debug("Connected to {}.".format(tracker_store.__class__.__name__))
+        logger.debug(f"Connected to {tracker_store.__class__.__name__}.")
         return tracker_store
 
     @staticmethod
@@ -60,8 +60,7 @@ class TrackerStore(object):
             custom_tracker = class_from_module_path(store.type)
         except (AttributeError, ImportError):
             logger.warning(
-                "Store type '{}' not found. "
-                "Using InMemoryTrackerStore instead".format(store.type)
+                f"Store type '{store.type}' not found. Using InMemoryTrackerStore instead"
             )
 
         if custom_tracker:
@@ -106,7 +105,7 @@ class TrackerStore(object):
         evts = tracker.events
         for evt in list(itertools.islice(evts, offset, len(evts))):
             body = {"sender_id": tracker.sender_id}
-            body.update(evt.as_dict())
+            body |= evt.as_dict()
             self.event_broker.publish(body)
 
     def number_of_existing_events(self, sender_id: Text) -> int:
@@ -124,8 +123,7 @@ class TrackerStore(object):
 
     def deserialise_tracker(self, sender_id, _json) -> Optional[DialogueStateTracker]:
         dialogue = pickle.loads(_json)
-        tracker = self.init_tracker(sender_id)
-        if tracker:
+        if tracker := self.init_tracker(sender_id):
             tracker.recreate_from_dialogue(dialogue)
             return tracker
         else:
@@ -147,10 +145,10 @@ class InMemoryTrackerStore(TrackerStore):
 
     def retrieve(self, sender_id: Text) -> Optional[DialogueStateTracker]:
         if sender_id in self.store:
-            logger.debug("Recreating tracker for id '{}'".format(sender_id))
+            logger.debug(f"Recreating tracker for id '{sender_id}'")
             return self.deserialise_tracker(sender_id, self.store[sender_id])
         else:
-            logger.debug("Creating a new tracker for id '{}'.".format(sender_id))
+            logger.debug(f"Creating a new tracker for id '{sender_id}'.")
             return None
 
     def keys(self) -> Iterable[Text]:
@@ -190,10 +188,7 @@ class RedisTrackerStore(TrackerStore):
 
     def retrieve(self, sender_id):
         stored = self.red.get(sender_id)
-        if stored is not None:
-            return self.deserialise_tracker(sender_id, stored)
-        else:
-            return None
+        return None if stored is None else self.deserialise_tracker(sender_id, stored)
 
 
 class MongoTrackerStore(TrackerStore):
@@ -257,20 +252,18 @@ class MongoTrackerStore(TrackerStore):
                 return_document=ReturnDocument.AFTER,
             )
 
-        if stored is not None:
-            if self.domain:
-                return DialogueStateTracker.from_dict(
-                    sender_id, stored.get("events"), self.domain.slots
-                )
-            else:
-                logger.warning(
-                    "Can't recreate tracker from mongo storage "
-                    "because no domain is set. Returning `None` "
-                    "instead."
-                )
-                return None
-        else:
+        if stored is None:
             return None
+        if self.domain:
+            return DialogueStateTracker.from_dict(
+                sender_id, stored.get("events"), self.domain.slots
+            )
+        logger.warning(
+            "Can't recreate tracker from mongo storage "
+            "because no domain is set. Returning `None` "
+            "instead."
+        )
+        return None
 
     def keys(self) -> Iterable[Text]:
         return [c["sender_id"] for c in self.conversations.find()]
@@ -315,9 +308,7 @@ class SQLTrackerStore(TrackerStore):
         engine_url = self.get_db_url(
             dialect, host, port, db, username, password, login_db
         )
-        logger.debug(
-            "Attempting to connect to database " 'via "{}"'.format(repr(engine_url))
-        )
+        logger.debug(f'Attempting to connect to database via "{repr(engine_url)}"')
 
         # Database might take a while to come up
         while True:
@@ -338,7 +329,7 @@ class SQLTrackerStore(TrackerStore):
                     # Several Rasa services started in parallel may attempt to
                     # create tables at the same time. That is okay so long as
                     # the first services finishes the table creation.
-                    logger.error("Could not create tables: {}".format(e))
+                    logger.error(f"Could not create tables: {e}")
 
                 self.session = sessionmaker(bind=self.engine)()
                 break
@@ -350,7 +341,7 @@ class SQLTrackerStore(TrackerStore):
                 logger.warning(e)
                 sleep(5)
 
-        logger.debug("Connection to SQL database '{}' successful".format(db))
+        logger.debug(f"Connection to SQL database '{db}' successful")
 
         super(SQLTrackerStore, self).__init__(domain, event_broker)
 
@@ -391,7 +382,7 @@ class SQLTrackerStore(TrackerStore):
 
         if host:
             # add fake scheme to properly parse components
-            parsed = urlsplit("schema://" + host)
+            parsed = urlsplit(f"schema://{host}")
 
             # users might include the port in the url
             port = parsed.port or port
@@ -426,15 +417,13 @@ class SQLTrackerStore(TrackerStore):
 
         cursor = conn.connection.cursor()
         cursor.execute("COMMIT")
-        cursor.execute(
-            ("SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{}'".format(db))
-        )
+        cursor.execute(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{db}'")
         exists = cursor.fetchone()
         if not exists:
             try:
-                cursor.execute("CREATE DATABASE {}".format(db))
+                cursor.execute(f"CREATE DATABASE {db}")
             except psycopg2.IntegrityError as e:
-                logger.error("Could not create database '{}': {}".format(db, e))
+                logger.error(f"Could not create database '{db}': {e}")
 
         cursor.close()
         conn.close()
@@ -450,15 +439,13 @@ class SQLTrackerStore(TrackerStore):
         result = query.filter_by(sender_id=sender_id).all()
         events = [json.loads(event.data) for event in result]
 
-        if self.domain and len(events) > 0:
-            logger.debug("Recreating tracker from sender id '{}'".format(sender_id))
+        if self.domain and events:
+            logger.debug(f"Recreating tracker from sender id '{sender_id}'")
 
             return DialogueStateTracker.from_dict(sender_id, events, self.domain.slots)
         else:
             logger.debug(
-                "Can't retrieve tracker matching"
-                "sender id '{}' from SQL storage.  "
-                "Returning `None` instead.".format(sender_id)
+                f"Can't retrieve tracker matchingsender id '{sender_id}' from SQL storage.  Returning `None` instead."
             )
             return None
 
@@ -491,8 +478,7 @@ class SQLTrackerStore(TrackerStore):
         self.session.commit()
 
         logger.debug(
-            "Tracker with sender_id '{}' "
-            "stored to database".format(tracker.sender_id)
+            f"Tracker with sender_id '{tracker.sender_id}' stored to database"
         )
 
     def number_of_existing_events(self, sender_id: Text) -> int:

@@ -52,11 +52,7 @@ class UserMessage(object):
         """
         self.text = text.strip() if text else text
 
-        if message_id is not None:
-            self.message_id = str(message_id)
-        else:
-            self.message_id = uuid.uuid4().hex
-
+        self.message_id = uuid.uuid4().hex if message_id is None else str(message_id)
         if output_channel is not None:
             self.output_channel = output_channel
         else:
@@ -80,10 +76,7 @@ def register(
         await app.agent.handle_message(*args, **kwargs)
 
     for channel in input_channels:
-        if route:
-            p = urljoin(route, channel.url_prefix())
-        else:
-            p = None
+        p = urljoin(route, channel.url_prefix()) if route else None
         app.blueprint(channel.blueprint(handler), url_prefix=p)
 
     app.input_channels = input_channels
@@ -94,22 +87,12 @@ def button_to_string(button, idx=0):
 
     title = button.pop("title", "")
 
-    if "payload" in button:
-        payload = " ({})".format(button.pop("payload"))
-    else:
-        payload = ""
-
+    payload = f' ({button.pop("payload")})' if "payload" in button else ""
     # if there are any additional attributes, we append them to the output
-    if button:
-        details = " - {}".format(json.dumps(button, sort_keys=True))
-    else:
-        details = ""
-
-    button_string = "{idx}: {title}{payload}{details}".format(
+    details = " - {}".format(json.dumps(button, sort_keys=True)) if button else ""
+    return "{idx}: {title}{payload}{details}".format(
         idx=idx + 1, title=title, payload=payload, details=details
     )
-
-    return button_string
 
 
 def element_to_string(element, idx=0):
@@ -117,11 +100,9 @@ def element_to_string(element, idx=0):
 
     title = element.pop("title", "")
 
-    element_string = "{idx}: {title} - {element}".format(
+    return "{idx}: {title} - {element}".format(
         idx=idx + 1, title=title, element=json.dumps(element, sort_keys=True)
     )
-
-    return element_string
 
 
 class InputChannel(object):
@@ -149,14 +130,7 @@ class InputChannel(object):
     @classmethod
     def raise_missing_credentials_exception(cls):
         raise Exception(
-            "To use the {} input channel, you need to "
-            "pass a credentials file using '--credentials'. "
-            "The argument should be a file path pointing to "
-            "a yml file containing the {} authentication "
-            "information. Details in the docs: "
-            "{}/user-guide/messaging-and-voice-channels/".format(
-                cls.name(), cls.name(), DOCS_BASE_URL
-            )
+            f"To use the {cls.name()} input channel, you need to pass a credentials file using '--credentials'. The argument should be a file path pointing to a yml file containing the {cls.name()} authentication information. Details in the docs: {DOCS_BASE_URL}/user-guide/messaging-and-voice-channels/"
         )
 
     def get_output_channel(self) -> Optional["OutputChannel"]:
@@ -231,7 +205,7 @@ class OutputChannel(object):
     ) -> None:
         """Sends an image. Default will just post the url as a string."""
 
-        await self.send_text_message(recipient_id, "Image: {}".format(image), **kwargs)
+        await self.send_text_message(recipient_id, f"Image: {image}", **kwargs)
 
     async def send_attachment(
         self, recipient_id: Text, attachment: Text, **kwargs: Any
@@ -239,7 +213,7 @@ class OutputChannel(object):
         """Sends an attachment. Default will just post as a string."""
 
         await self.send_text_message(
-            recipient_id, "Attachment: {}".format(attachment), **kwargs
+            recipient_id, f"Attachment: {attachment}", **kwargs
         )
 
     async def send_text_with_buttons(
@@ -327,10 +301,7 @@ class CollectingOutputChannel(OutputChannel):
         return utils.remove_none_values(obj)
 
     def latest_output(self):
-        if self.messages:
-            return self.messages[-1]
-        else:
-            return None
+        return self.messages[-1] if self.messages else None
 
     async def _persist_message(self, message) -> None:
         self.messages.append(message)  # pytype: disable=bad-return-type
@@ -481,25 +452,24 @@ class RestInput(InputChannel):
                     ),
                     content_type="text/event-stream",
                 )
-            else:
-                collector = CollectingOutputChannel()
-                # noinspection PyBroadException
-                try:
-                    await on_new_message(
-                        UserMessage(
-                            text, collector, sender_id, input_channel=input_channel
-                        )
+            collector = CollectingOutputChannel()
+            # noinspection PyBroadException
+            try:
+                await on_new_message(
+                    UserMessage(
+                        text, collector, sender_id, input_channel=input_channel
                     )
-                except CancelledError:
-                    logger.error(
-                        "Message handling timed out for "
-                        "user message '{}'.".format(text)
-                    )
-                except Exception:
-                    logger.exception(
-                        "An exception occured while handling "
-                        "user message '{}'.".format(text)
-                    )
-                return response.json(collector.messages)
+                )
+            except CancelledError:
+                logger.error(
+                    "Message handling timed out for "
+                    "user message '{}'.".format(text)
+                )
+            except Exception:
+                logger.exception(
+                    "An exception occured while handling "
+                    "user message '{}'.".format(text)
+                )
+            return response.json(collector.messages)
 
         return custom_webhook

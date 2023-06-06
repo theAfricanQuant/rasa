@@ -170,10 +170,7 @@ class SlackInput(InputChannel):
     def _is_user_message(slack_event):
         return (
             slack_event.get("event")
-            and (
-                slack_event.get("event").get("type") == "message"
-                or slack_event.get("event").get("type") == "app_mention"
-            )
+            and slack_event.get("event").get("type") in ["message", "app_mention"]
             and slack_event.get("event").get("text")
             and not slack_event.get("event").get("bot_id")
         )
@@ -198,12 +195,7 @@ class SlackInput(InputChannel):
             # heuristic to format majority cases OK
             # can be adjusted to taste later if needed,
             # but is a good first approximation
-            for regex, replacement in [
-                (r"<@{}>\s".format(uid_to_remove), ""),
-                (r"\s<@{}>".format(uid_to_remove), ""),
-                # a bit arbitrary but probably OK
-                (r"<@{}>".format(uid_to_remove), " "),
-            ]:
+            for regex, replacement in [(f"<@{uid_to_remove}>\s", ""), (f"\s<@{uid_to_remove}>", ""), (f"<@{uid_to_remove}>", " ")]:
                 text = re.sub(regex, replacement, text)
 
         return text.strip()
@@ -212,27 +204,24 @@ class SlackInput(InputChannel):
     def _is_interactive_message(payload):
         """Check wheter the input is a supported interactive input type."""
 
-        supported = [
-            "button",
-            "select",
-            "static_select",
-            "external_select",
-            "conversations_select",
-            "users_select",
-            "channels_select",
-            "overflow",
-            "datepicker",
-        ]
         if payload.get("actions"):
             action_type = payload["actions"][0].get("type")
+            supported = [
+                "button",
+                "select",
+                "static_select",
+                "external_select",
+                "conversations_select",
+                "users_select",
+                "channels_select",
+                "overflow",
+                "datepicker",
+            ]
             if action_type in supported:
                 return True
             elif action_type:
                 logger.warning(
-                    "Received input from a Slack interactive component of type "
-                    + "'{}', for which payload parsing is not yet supported.".format(
-                        payload["actions"][0]["type"]
-                    )
+                    f"""Received input from a Slack interactive component of type '{payload["actions"][0]["type"]}', for which payload parsing is not yet supported."""
                 )
         return False
 
@@ -268,8 +257,7 @@ class SlackInput(InputChannel):
         retry_count = request.headers.get(self.retry_num_header)
         if retry_count and retry_reason in self.errors_ignore_retry:
             logger.warning(
-                "Received retry #{} request from slack"
-                " due to {}".format(retry_count, retry_reason)
+                f"Received retry #{retry_count} request from slack due to {retry_reason}"
             )
 
             return response.text(None, status=201, headers={"X-Slack-No-Retry": 1})

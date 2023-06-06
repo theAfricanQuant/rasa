@@ -12,8 +12,6 @@ from rasa.core.channels.channel import (
 # above first, otherwise we will run into import cycles
 from rasa.core.channels.socketio import SocketIOInput
 
-pass
-
 from rasa.core.channels.botframework import BotFrameworkInput  # nopep8
 from rasa.core.channels.callback import CallbackInput  # nopep8
 from rasa.core.channels.console import CmdlineInput  # nopep8

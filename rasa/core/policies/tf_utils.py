@@ -27,26 +27,21 @@ class TimedNTM(object):
         """
 
         # interpolation gate
-        self.name = "timed_ntm_" + name
+        self.name = f"timed_ntm_{name}"
 
         self._inter_gate = tf.layers.Dense(
-            units=1, activation=tf.sigmoid, name=self.name + "/inter_gate"
+            units=1, activation=tf.sigmoid, name=f"{self.name}/inter_gate"
         )
         # if use sparsemax instead of softmax for probs
         self._sparse_attention = sparse_attention
 
-        if sparse_attention:
-            # sparsemax doesn't support inf
-            self._inf = float(5000)
-        else:
-            self._inf = float("inf")
-
+        self._inf = float(5000) if sparse_attention else float("inf")
         # shift weighting if range is provided
         if attn_shift_range:
             self._shift_weight = tf.layers.Dense(
                 units=2 * attn_shift_range + 1,
                 activation=tf.nn.softmax,
-                name=self.name + "/shift_weight",
+                name=f"{self.name}/shift_weight",
             )
         else:
             self._shift_weight = None
@@ -56,7 +51,7 @@ class TimedNTM(object):
             units=1,
             activation=lambda a: tf.nn.softplus(a) + 1,
             bias_initializer=tf.constant_initializer(1),
-            name=self.name + "/gamma_sharp",
+            name=f"{self.name}/gamma_sharp",
         )
 
     def __call__(self, attn_inputs, scores, scores_state, mask):
@@ -354,23 +349,18 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
                 attn_shift_range *= len(attention_mechanism)
             elif len(attn_shift_range) != len(attention_mechanism):
                 raise ValueError(
-                    "If provided, `attn_shift_range` must contain exactly one "
-                    "integer per attention_mechanism, saw: {} vs {}"
-                    "".format(len(attn_shift_range), len(attention_mechanism))
+                    f"If provided, `attn_shift_range` must contain exactly one integer per attention_mechanism, saw: {len(attn_shift_range)} vs {len(attention_mechanism)}"
                 )
-            for i in range(1, len(attention_mechanism)):
-                self._timed_ntms.append(
-                    TimedNTM(attn_shift_range[i], sparse_attention, name=str(i))
-                )
-
+            self._timed_ntms.extend(
+                TimedNTM(attn_shift_range[i], sparse_attention, name=str(i))
+                for i in range(1, len(attention_mechanism))
+            )
         if rnn_and_attn_inputs_fn is None:
             rnn_and_attn_inputs_fn = self._default_rnn_and_attn_inputs_fn
-        else:
-            if not callable(rnn_and_attn_inputs_fn):
-                raise TypeError(
-                    "`rnn_and_attn_inputs_fn` must be callable, saw type: {}"
-                    "".format(type(rnn_and_attn_inputs_fn).__name__)
-                )
+        elif not callable(rnn_and_attn_inputs_fn):
+            raise TypeError(
+                f"`rnn_and_attn_inputs_fn` must be callable, saw type: {type(rnn_and_attn_inputs_fn).__name__}"
+            )
         self._rnn_and_attn_inputs_fn = rnn_and_attn_inputs_fn
 
         if not isinstance(ignore_mask, list):
@@ -406,21 +396,20 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
 
     @property
     def output_size(self):
-        if self._output_attention:
-            if self._index_of_attn_to_copy is not None:
-                # output both raw rnn cell_output and
-                # cell_output with copied attention
-                # together with attention vector itself
-                # and additional output
-                return (
-                    2 * self._cell.output_size
-                    + self._attention_layer_size
-                    + self.additional_output_size()
-                )
-            else:
-                return self._cell.output_size + self._attention_layer_size
-        else:
+        if not self._output_attention:
             return self._cell.output_size
+        if self._index_of_attn_to_copy is not None:
+            # output both raw rnn cell_output and
+            # cell_output with copied attention
+            # together with attention vector itself
+            # and additional output
+            return (
+                2 * self._cell.output_size
+                + self._attention_layer_size
+                + self.additional_output_size()
+            )
+        else:
+            return self._cell.output_size + self._attention_layer_size
 
     @property
     def state_size(self):
@@ -453,7 +442,7 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
         # use AttentionWrapperState from superclass
         zero_state = super(TimeAttentionWrapper, self).zero_state(batch_size, dtype)
 
-        with tf.name_scope(type(self).__name__ + "ZeroState", values=[batch_size]):
+        with tf.name_scope(f"{type(self).__name__}ZeroState", values=[batch_size]):
             # store time masks
             all_time_masks = tf.TensorArray(
                 tf.int32,
@@ -534,9 +523,7 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
         """
         if not isinstance(state, TimeAttentionWrapperState):
             raise TypeError(
-                "Expected state to be instance of "
-                "TimeAttentionWrapperState. "
-                "Received type {} instead.".format(type(state))
+                f"Expected state to be instance of TimeAttentionWrapperState. Received type {type(state)} instead."
             )
 
         # Step 1: Calculate attention based on
@@ -546,16 +533,7 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
         rnn_inputs, attn_inputs = self._rnn_and_attn_inputs_fn(inputs, cell_state)
 
         cell_batch_size = attn_inputs.shape[0].value or tf.shape(attn_inputs)[0]
-        error_message = (
-            "When applying AttentionWrapper %s: " % self.name
-            + "Non-matching batch sizes between the memory "
-            "(encoder output) and the query (decoder output).  "
-            "Are you using "
-            "the BeamSearchDecoder?  "
-            "You may need to tile your memory input via "
-            "the tf.contrib.seq2seq.tile_batch function with argument "
-            "multiple=beam_width."
-        )
+        error_message = f"When applying AttentionWrapper {self.name}: Non-matching batch sizes between the memory (encoder output) and the query (decoder output).  Are you using the BeamSearchDecoder?  You may need to tile your memory input via the tf.contrib.seq2seq.tile_batch function with argument multiple=beam_width."
         with tf.control_dependencies(
             self._batch_size_checks(cell_batch_size, error_message)
         ):
@@ -568,7 +546,6 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
             previous_attention_state = [state.attention_state]
             previous_alignment_history = [state.alignment_history]
 
-        all_alignments = []
         all_attentions = []
         all_attention_states = []
         maybe_all_histories = []
@@ -576,6 +553,7 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
         prev_time_masks = self._read_from_tensor_array(state.all_time_masks, state.time)
         prev_time_mask = prev_time_masks[:, -1, :]
 
+        all_alignments = []
         for i, attention_mechanism in enumerate(self._attention_mechanisms):
             # Steps 2 - 5 are performed inside `_compute_time_attention`
             (attention, alignments, next_attention_state) = _compute_time_attention(
@@ -826,18 +804,17 @@ class TimeAttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
     ):
         """Helper method to recalculate new next_cell_state"""
 
-        if isinstance(next_cell_state, tf.contrib.rnn.LSTMStateTuple):
-            next_cell_state_c = self._new_hidden_state(
-                prev_all_cell_states.c, next_cell_state.c, alignments, time
-            )
-            next_cell_state_h = self._new_hidden_state(
-                prev_all_cell_states.h, new_cell_output, alignments, time
-            )
-            return tf.contrib.rnn.LSTMStateTuple(next_cell_state_c, next_cell_state_h)
-        else:
+        if not isinstance(next_cell_state, tf.contrib.rnn.LSTMStateTuple):
             return self._new_hidden_state(
                 prev_all_cell_states, alignments, new_cell_output, time
             )
+        next_cell_state_c = self._new_hidden_state(
+            prev_all_cell_states.c, next_cell_state.c, alignments, time
+        )
+        next_cell_state_h = self._new_hidden_state(
+            prev_all_cell_states.h, new_cell_output, alignments, time
+        )
+        return tf.contrib.rnn.LSTMStateTuple(next_cell_state_c, next_cell_state_h)
 
     @staticmethod
     def _all_cell_states(prev_all_cell_states, next_cell_state, time):
@@ -912,8 +889,7 @@ class ChronoBiasLayerNormBasicLSTMCell(tf.contrib.rnn.LayerNormBasicLSTMCell):
         dtype = args.dtype
         weights = tf.get_variable("kernel", [proj_size, layer_size], dtype=dtype)
         bias = tf.get_variable("bias", [layer_size], dtype=dtype)
-        out = tf.nn.bias_add(tf.matmul(args, weights), bias)
-        return out
+        return tf.nn.bias_add(tf.matmul(args, weights), bias)
 
     def call(self, inputs, state):
         """LSTM cell with layer normalization and recurrent dropout."""

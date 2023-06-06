@@ -14,15 +14,14 @@ logger = logging.getLogger(__name__)
 
 
 def extract_value(match):
-    if match["value"].get("type") == "interval":
-        value = {
+    return (
+        {
             "to": match["value"].get("to", {}).get("value"),
             "from": match["value"].get("from", {}).get("value"),
         }
-    else:
-        value = match["value"].get("value")
-
-    return value
+        if match["value"].get("type") == "interval"
+        else match["value"].get("value")
+    )
 
 
 def convert_duckling_format_to_rasa(matches):
@@ -85,7 +84,7 @@ class DucklingHTTPExtractor(EntityExtractor):
             # this is king of a quick fix to generate a proper locale
             # works most of the time
             language = self.language or ""
-            locale_fix = "{}_{}".format(language, language.upper())
+            locale_fix = f"{language}_{language.upper()}"
             self.component_config["locale"] = locale_fix
         return self.component_config.get("locale")
 
@@ -112,27 +111,16 @@ class DucklingHTTPExtractor(EntityExtractor):
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
             }
-            response = requests.post(
-                self._url() + "/parse", data=payload, headers=headers
-            )
+            response = requests.post(f"{self._url()}/parse", data=payload, headers=headers)
             if response.status_code == 200:
                 return response.json()
-            else:
-                logger.error(
-                    "Failed to get a proper response from remote "
-                    "duckling. Status Code: {}. Response: {}"
-                    "".format(response.status_code, response.text)
-                )
-                return []
+            logger.error(
+                f"Failed to get a proper response from remote duckling. Status Code: {response.status_code}. Response: {response.text}"
+            )
+            return []
         except requests.exceptions.ConnectionError as e:
             logger.error(
-                "Failed to connect to duckling http server. Make sure "
-                "the duckling server is running and the proper host "
-                "and port are set in the configuration. More "
-                "information on how to run the server can be found on "
-                "github: "
-                "https://github.com/facebook/duckling#quickstart "
-                "Error: {}".format(e)
+                f"Failed to connect to duckling http server. Make sure the duckling server is running and the proper host and port are set in the configuration. More information on how to run the server can be found on github: https://github.com/facebook/duckling#quickstart Error: {e}"
             )
             return []
 
@@ -143,9 +131,7 @@ class DucklingHTTPExtractor(EntityExtractor):
                 return int(message.time) * 1000
             except ValueError as e:
                 logging.warning(
-                    "Could not parse timestamp {}. Instead "
-                    "current UTC time will be passed to "
-                    "duckling. Error: {}".format(message.time, e)
+                    f"Could not parse timestamp {message.time}. Instead current UTC time will be passed to duckling. Error: {e}"
                 )
         # fallbacks to current time, multiplied by 1000 because duckling
         # requires the reftime in miliseconds

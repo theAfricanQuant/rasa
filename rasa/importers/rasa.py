@@ -66,9 +66,7 @@ class RasaFileImporter(TrainingDataImporter):
             domain.check_missing_templates()
         except InvalidDomain:
             logger.debug(
-                "Loading domain from '{}' failed. Using empty domain.".format(
-                    self._domain_path
-                )
+                f"Loading domain from '{self._domain_path}' failed. Using empty domain."
             )
 
         return domain

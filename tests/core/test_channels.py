@@ -417,7 +417,7 @@ def test_slack_message_sanitization():
     target_message_2 = "Hey, you can sit here if you want !"
     target_message_3 = "Hey, you can sit here if you want!"
 
-    uid_token = "<@{}>".format(test_uid)
+    uid_token = f"<@{test_uid}>"
     raw_messages = [
         test.format(uid=uid_token)
         for test in [
@@ -449,16 +449,11 @@ def test_slack_message_sanitization():
     ]
 
     # no message that is wrongly sanitized please
-    assert (
-        len(
-            [
-                sanitized
-                for sanitized, target in zip(sanitized_messages, target_messages)
-                if sanitized != target
-            ]
-        )
-        == 0
-    )
+    assert not [
+        sanitized
+        for sanitized, target in zip(sanitized_messages, target_messages)
+        if sanitized != target
+    ]
 
 
 def test_slack_init_one_parameter():

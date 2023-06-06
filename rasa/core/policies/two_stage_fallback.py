@@ -123,28 +123,24 @@ class TwoStageFallbackPolicy(FallbackPolicy):
         if self._is_user_input_expected(tracker):
             result = confidence_scores_for(ACTION_LISTEN_NAME, 1.0, domain)
         elif self._has_user_denied(last_intent_name, tracker):
-            logger.debug(
-                "User '{}' denied suggested intents.".format(tracker.sender_id)
-            )
+            logger.debug(f"User '{tracker.sender_id}' denied suggested intents.")
             result = self._results_for_user_denied(tracker, domain)
         elif user_rephrased and should_nlu_fallback:
             logger.debug(
-                "Ambiguous rephrasing of user '{}' "
-                "for intent '{}'".format(tracker.sender_id, last_intent_name)
+                f"Ambiguous rephrasing of user '{tracker.sender_id}' for intent '{last_intent_name}'"
             )
             result = confidence_scores_for(
                 ACTION_DEFAULT_ASK_AFFIRMATION_NAME, 1.0, domain
             )
         elif user_rephrased:
-            logger.debug("User '{}' rephrased intent".format(tracker.sender_id))
+            logger.debug(f"User '{tracker.sender_id}' rephrased intent")
             result = confidence_scores_for(
                 ACTION_REVERT_FALLBACK_EVENTS_NAME, 1.0, domain
             )
         elif tracker.last_executed_action_has(ACTION_DEFAULT_ASK_AFFIRMATION_NAME):
             if not should_nlu_fallback:
                 logger.debug(
-                    "User '{}' affirmed intent '{}'"
-                    "".format(tracker.sender_id, last_intent_name)
+                    f"User '{tracker.sender_id}' affirmed intent '{last_intent_name}'"
                 )
                 result = confidence_scores_for(
                     ACTION_REVERT_FALLBACK_EVENTS_NAME, 1.0, domain
@@ -155,19 +151,14 @@ class TwoStageFallbackPolicy(FallbackPolicy):
                 )
         elif should_nlu_fallback:
             logger.debug(
-                "User '{}' has to affirm intent '{}'.".format(
-                    tracker.sender_id, last_intent_name
-                )
+                f"User '{tracker.sender_id}' has to affirm intent '{last_intent_name}'."
             )
             result = confidence_scores_for(
                 ACTION_DEFAULT_ASK_AFFIRMATION_NAME, 1.0, domain
             )
         else:
             logger.debug(
-                "NLU confidence threshold met, confidence of "
-                "fallback action set to core threshold ({}).".format(
-                    self.core_threshold
-                )
+                f"NLU confidence threshold met, confidence of fallback action set to core threshold ({self.core_threshold})."
             )
             result = self.fallback_scores(domain, self.core_threshold)
 
@@ -191,11 +182,9 @@ class TwoStageFallbackPolicy(FallbackPolicy):
     def _results_for_user_denied(
         self, tracker: DialogueStateTracker, domain: Domain
     ) -> List[float]:
-        has_denied_before = tracker.last_executed_action_has(
+        if has_denied_before := tracker.last_executed_action_has(
             ACTION_DEFAULT_ASK_REPHRASE_NAME, skip=1
-        )
-
-        if has_denied_before:
+        ):
             return confidence_scores_for(self.fallback_nlu_action_name, 1.0, domain)
         else:
             return confidence_scores_for(ACTION_DEFAULT_ASK_REPHRASE_NAME, 1.0, domain)

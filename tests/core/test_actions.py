@@ -56,9 +56,9 @@ def template_sender_tracker(default_domain):
 
 
 def test_text_format():
-    assert "{}".format(ActionListen()) == "Action('action_listen')"
+    assert f"{ActionListen()}" == "Action('action_listen')"
     assert (
-        "{}".format(ActionUtterTemplate("my_action_name"))
+        f'{ActionUtterTemplate("my_action_name")}'
         == "ActionUtterTemplate('my_action_name')"
     )
 

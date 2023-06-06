@@ -103,8 +103,7 @@ class MessageProcessor(object):
         tracker = self._get_tracker(sender_id)
         if not tracker:
             logger.warning(
-                "Failed to retrieve or create tracker for sender "
-                "'{}'.".format(sender_id)
+                f"Failed to retrieve or create tracker for sender '{sender_id}'."
             )
             return None
 
@@ -136,8 +135,7 @@ class MessageProcessor(object):
             self._save_tracker(tracker)
         else:
             logger.warning(
-                "Failed to retrieve or create tracker for sender "
-                "'{}'.".format(message.sender_id)
+                f"Failed to retrieve or create tracker for sender '{message.sender_id}'."
             )
         return tracker
 
@@ -164,8 +162,7 @@ class MessageProcessor(object):
             self._save_tracker(tracker)
         else:
             logger.warning(
-                "Failed to retrieve or create tracker for sender "
-                "'{}'.".format(sender_id)
+                f"Failed to retrieve or create tracker for sender '{sender_id}'."
             )
         return tracker
 
@@ -200,10 +197,10 @@ class MessageProcessor(object):
     ) -> bool:
         """Check if the conversation has been restarted after reminder."""
 
-        for e in reversed(tracker.applied_events()):
-            if MessageProcessor._is_reminder(e, reminder_event.name):
-                return True
-        return False  # not found in applied events --> has been restarted
+        return any(
+            MessageProcessor._is_reminder(e, reminder_event.name)
+            for e in reversed(tracker.applied_events())
+        )
 
     @staticmethod
     def _has_message_after_reminder(
@@ -231,8 +228,7 @@ class MessageProcessor(object):
 
         if not tracker:
             logger.warning(
-                "Failed to retrieve or create tracker for sender "
-                "'{}'.".format(sender_id)
+                f"Failed to retrieve or create tracker for sender '{sender_id}'."
             )
             return None
 
@@ -242,10 +238,7 @@ class MessageProcessor(object):
             or not self._is_reminder_still_valid(tracker, reminder_event)
         ):
             logger.debug(
-                "Canceled reminder because it is outdated. "
-                "(event: {} id: {})".format(
-                    reminder_event.action_name, reminder_event.name
-                )
+                f"Canceled reminder because it is outdated. (event: {reminder_event.action_name} id: {reminder_event.name})"
             )
         else:
             # necessary for proper featurization, otherwise the previous
@@ -265,10 +258,10 @@ class MessageProcessor(object):
     def _log_slots(tracker):
         # Log currently set slots
         slot_values = "\n".join(
-            ["\t{}: {}".format(s.name, s.value) for s in tracker.slots.values()]
+            [f"\t{s.name}: {s.value}" for s in tracker.slots.values()]
         )
         if slot_values.strip():
-            logger.debug("Current slot values: \n{}".format(slot_values))
+            logger.debug(f"Current slot values: \n{slot_values}")
 
     def _get_action(self, action_name):
         return self.domain.action_for_name(action_name, self.action_endpoint)
@@ -287,10 +280,7 @@ class MessageProcessor(object):
             )
 
         logger.debug(
-            "Received user message '{}' with intent '{}' "
-            "and entities '{}'".format(
-                message.text, parse_data["intent"], parse_data["entities"]
-            )
+            f"""Received user message '{message.text}' with intent '{parse_data["intent"]}' and entities '{parse_data["entities"]}'"""
         )
         return parse_data
 
@@ -322,8 +312,7 @@ class MessageProcessor(object):
             self._log_slots(tracker)
 
         logger.debug(
-            "Logged UserUtterance - "
-            "tracker now has {} events".format(len(tracker.events))
+            f"Logged UserUtterance - tracker now has {len(tracker.events)} events"
         )
 
     @staticmethod
@@ -452,10 +441,7 @@ class MessageProcessor(object):
             return self.should_predict_another_action(action.name(), events)
         except Exception as e:
             logger.error(
-                "Encountered an exception while running action '{}'. "
-                "Bot will continue, but the actions events are lost. "
-                "Please check the logs of your action server for "
-                "more information.".format(action.name())
+                f"Encountered an exception while running action '{action.name()}'. Bot will continue, but the actions events are lost. Please check the logs of your action server for more information."
             )
             logger.debug(e, exc_info=True)
             events = []
@@ -484,9 +470,7 @@ class MessageProcessor(object):
             if isinstance(e, SlotSet) and e.key not in slots_seen_during_train:
                 s = tracker.slots.get(e.key)
                 if s and s.has_features():
-                    if e.key == "requested_slot" and tracker.active_form:
-                        pass
-                    else:
+                    if e.key != "requested_slot" or not tracker.active_form:
                         logger.warning(
                             "Action '{0}' set a slot type '{1}' that "
                             "it never set during the training. This "
@@ -508,9 +492,7 @@ class MessageProcessor(object):
             events = []
 
         logger.debug(
-            "Action '{}' ended with events '{}'".format(
-                action_name, ["{}".format(e) for e in events]
-            )
+            f"""Action '{action_name}' ended with events '{[f"{e}" for e in events]}'"""
         )
 
         self._warn_about_new_slots(tracker, action_name, events)
@@ -551,17 +533,13 @@ class MessageProcessor(object):
         """Collect predictions from ensemble and return action and predictions.
         """
 
-        followup_action = tracker.followup_action
-        if followup_action:
+        if followup_action := tracker.followup_action:
             tracker.clear_followup_action()
-            result = self._prob_array_for_action(followup_action)
-            if result:
+            if result := self._prob_array_for_action(followup_action):
                 return result
             else:
                 logger.error(
-                    "Trying to run unknown follow up action '{}'!"
-                    "Instead of running that, we will ignore the action "
-                    "and predict the next action.".format(followup_action)
+                    f"Trying to run unknown follow up action '{followup_action}'!Instead of running that, we will ignore the action and predict the next action."
                 )
 
         return self.policy_ensemble.probabilities_using_best_policy(

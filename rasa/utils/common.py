@@ -141,7 +141,7 @@ def obtain_verbosity() -> int:
     verbosity = 0
     if log_level == "DEBUG":
         verbosity = 2
-    if log_level == "INFO":
+    elif log_level == "INFO":
         verbosity = 1
 
     return verbosity
@@ -151,7 +151,7 @@ def is_logging_disabled() -> bool:
     """Returns true, if log level is set to WARNING or ERROR, false otherwise."""
     log_level = os.environ.get(ENV_LOG_LEVEL, DEFAULT_LOG_LEVEL)
 
-    return log_level == "ERROR" or log_level == "WARNING"
+    return log_level in ["ERROR", "WARNING"]
 
 
 def sort_list_of_dicts_by_first_key(dicts: List[Dict]) -> List[Dict]:
@@ -184,7 +184,7 @@ def class_from_module_path(
             m = importlib.import_module(lookup_path)
             return getattr(m, module_path)
         else:
-            raise ImportError("Cannot retrieve class from path {}.".format(module_path))
+            raise ImportError(f"Cannot retrieve class from path {module_path}.")
 
 
 def minimal_kwargs(
@@ -224,9 +224,7 @@ def write_global_config_value(name: Text, value: Any) -> None:
         c[name] = value
         rasa.core.utils.dump_obj_as_yaml_to_file(GLOBAL_USER_CONFIG_PATH, c)
     except Exception as e:
-        logger.warning(
-            "Failed to write global config. Error: {}. Skipping." "".format(e)
-        )
+        logger.warning(f"Failed to write global config. Error: {e}. Skipping.")
 
 
 def read_global_config_value(name: Text, unavailable_ok: bool = True) -> Any:
@@ -243,7 +241,4 @@ def read_global_config_value(name: Text, unavailable_ok: bool = True) -> Any:
 
     c = read_global_config()
 
-    if name in c:
-        return c[name]
-    else:
-        return not_found()
+    return c[name] if name in c else not_found()

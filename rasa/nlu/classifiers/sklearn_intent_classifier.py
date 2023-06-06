@@ -51,10 +51,7 @@ class SklearnIntentClassifier(Component):
 
         super(SklearnIntentClassifier, self).__init__(component_config)
 
-        if le is not None:
-            self.le = le
-        else:
-            self.le = LabelEncoder()
+        self.le = le if le is not None else LabelEncoder()
         self.clf = clf
 
     @classmethod
@@ -195,8 +192,8 @@ class SklearnIntentClassifier(Component):
     def persist(self, file_name: Text, model_dir: Text) -> Optional[Dict[Text, Any]]:
         """Persist this model into the passed directory."""
 
-        classifier_file_name = file_name + "_classifier.pkl"
-        encoder_file_name = file_name + "_encoder.pkl"
+        classifier_file_name = f"{file_name}_classifier.pkl"
+        encoder_file_name = f"{file_name}_encoder.pkl"
         if self.clf and self.le:
             utils.json_pickle(
                 os.path.join(model_dir, encoder_file_name), self.le.classes_

@@ -44,7 +44,7 @@ def configure_file_logging(logger_obj: logging.Logger, log_file: Optional[Text])
 
 def module_path_from_instance(inst: Any) -> Text:
     """Return the module path of an instance's class."""
-    return inst.__module__ + "." + inst.__class__.__name__
+    return f"{inst.__module__}.{inst.__class__.__name__}"
 
 
 def dump_obj_as_json_to_file(filename: Text, obj: Any) -> None:
@@ -98,7 +98,7 @@ def lazyproperty(fn):
     will happen once, on the first call of the property. All succeeding calls
     will use the value stored in the private property."""
 
-    attr_name = "_lazy_" + fn.__name__
+    attr_name = f"_lazy_{fn.__name__}"
 
     @property
     def _lazyprop(self):
@@ -114,8 +114,7 @@ def one_hot(hot_idx, length, dtype=None):
 
     if hot_idx >= length:
         raise ValueError(
-            "Can't create one hot. Index '{}' is out "
-            "of range (length '{}')".format(hot_idx, length)
+            f"Can't create one hot. Index '{hot_idx}' is out of range (length '{length}')"
         )
     r = numpy.zeros(length, dtype)
     r[hot_idx] = 1
@@ -133,7 +132,7 @@ def generate_id(prefix="", max_chars=None):
     if max_chars:
         gid = gid[:max_chars]
 
-    return "{}{}".format(prefix, gid)
+    return f"{prefix}{gid}"
 
 
 def request_input(valid_values=None, prompt=None, max_suggested=3):
@@ -205,10 +204,7 @@ class HashableNDArray(object):
         returned. Otherwise, the encapsulated ndarray itself is returned."""
         from numpy import array
 
-        if self.__tight:
-            return array(self.__wrapped)
-
-        return self.__wrapped
+        return array(self.__wrapped) if self.__tight else self.__wrapped
 
 
 def _dump_yaml(obj, output):
@@ -281,10 +277,7 @@ def cap_length(s, char_limit=20, append_ellipsis=True):
     Appends an ellipsis if the string is to long."""
 
     if len(s) > char_limit:
-        if append_ellipsis:
-            return s[: char_limit - 3] + "..."
-        else:
-            return s[:char_limit]
+        return f"{s[:char_limit - 3]}..." if append_ellipsis else s[:char_limit]
     else:
         return s
 
@@ -329,7 +322,7 @@ def read_lines(filename, max_line_limit=None, line_pattern=".*"):
         for line in f:
             m = line_filter.match(line)
             if m is not None:
-                yield m.group(1 if m.lastindex else 0)
+                yield m[1 if m.lastindex else 0]
                 num_messages += 1
 
             if is_limit_reached(num_messages, max_line_limit):

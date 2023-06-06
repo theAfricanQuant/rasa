@@ -79,14 +79,12 @@ def test_ensemble_from_dict():
     assert len(ensemble) == 4
     # MemoizationPolicy is parent of FormPolicy
     assert any(
-        [
-            isinstance(p, MemoizationPolicy) and not isinstance(p, FormPolicy)
-            for p in ensemble
-        ]
+        isinstance(p, MemoizationPolicy) and not isinstance(p, FormPolicy)
+        for p in ensemble
     )
-    assert any([isinstance(p, KerasPolicy) for p in ensemble])
-    assert any([isinstance(p, FallbackPolicy) for p in ensemble])
-    assert any([isinstance(p, FormPolicy) for p in ensemble])
+    assert any(isinstance(p, KerasPolicy) for p in ensemble)
+    assert any(isinstance(p, FallbackPolicy) for p in ensemble)
+    assert any(isinstance(p, FormPolicy) for p in ensemble)
 
     # Verify policy configurations
     for policy in ensemble:

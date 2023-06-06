@@ -92,10 +92,7 @@ class KerasPolicy(Policy):
 
     @property
     def max_len(self):
-        if self.model:
-            return self.model.layers[0].batch_input_shape[1]
-        else:
-            return None
+        return self.model.layers[0].batch_input_shape[1] if self.model else None
 
     def _build_model(self, num_features, num_actions, max_history_len):
         warnings.warn(
@@ -146,10 +143,7 @@ class KerasPolicy(Policy):
             model.add(TimeDistributed(Dense(units=output_shape[-1])))
         else:
             raise ValueError(
-                "Cannot construct the model because"
-                "length of output_shape = {} "
-                "should be 1 or 2."
-                "".format(len(output_shape))
+                f"Cannot construct the model becauselength of output_shape = {len(output_shape)} should be 1 or 2."
             )
 
         model.add(Activation("softmax"))
@@ -190,9 +184,7 @@ class KerasPolicy(Policy):
                     )
 
                 logger.info(
-                    "Fitting model with {} total samples and a "
-                    "validation split of {}"
-                    "".format(training_data.num_examples(), self.validation_split)
+                    f"Fitting model with {training_data.num_examples()} total samples and a validation split of {self.validation_split}"
                 )
 
                 # filter out kwargs that cannot be passed to fit
@@ -299,41 +291,39 @@ class KerasPolicy(Policy):
     def load(cls, path: Text) -> "KerasPolicy":
         from tensorflow.keras.models import load_model
 
-        if os.path.exists(path):
-            featurizer = TrackerFeaturizer.load(path)
-            meta_file = os.path.join(path, "keras_policy.json")
-            if os.path.isfile(meta_file):
-                meta = json.loads(rasa.utils.io.read_file(meta_file))
-
-                tf_config_file = os.path.join(path, "keras_policy.tf_config.pkl")
-                with open(tf_config_file, "rb") as f:
-                    _tf_config = pickle.load(f)
-
-                model_file = os.path.join(path, meta["model"])
-
-                graph = tf.Graph()
-                with graph.as_default():
-                    session = tf.Session(config=_tf_config)
-                    with session.as_default():
-                        with warnings.catch_warnings():
-                            warnings.simplefilter("ignore")
-                            model = load_model(model_file)
-
-                return cls(
-                    featurizer=featurizer,
-                    priority=meta["priority"],
-                    model=model,
-                    graph=graph,
-                    session=session,
-                    current_epoch=meta["epochs"],
-                )
-            else:
-                return cls(featurizer=featurizer)
-        else:
+        if not os.path.exists(path):
             raise Exception(
-                "Failed to load dialogue model. Path {} "
-                "doesn't exist".format(os.path.abspath(path))
+                f"Failed to load dialogue model. Path {os.path.abspath(path)} doesn't exist"
             )
+        featurizer = TrackerFeaturizer.load(path)
+        meta_file = os.path.join(path, "keras_policy.json")
+        if os.path.isfile(meta_file):
+            meta = json.loads(rasa.utils.io.read_file(meta_file))
+
+            tf_config_file = os.path.join(path, "keras_policy.tf_config.pkl")
+            with open(tf_config_file, "rb") as f:
+                _tf_config = pickle.load(f)
+
+            model_file = os.path.join(path, meta["model"])
+
+            graph = tf.Graph()
+            with graph.as_default():
+                session = tf.Session(config=_tf_config)
+                with session.as_default():
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        model = load_model(model_file)
+
+            return cls(
+                featurizer=featurizer,
+                priority=meta["priority"],
+                model=model,
+                graph=graph,
+                session=session,
+                current_epoch=meta["epochs"],
+            )
+        else:
+            return cls(featurizer=featurizer)
 
 
 # pytype: enable=import-error

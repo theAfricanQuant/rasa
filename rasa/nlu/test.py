@@ -59,7 +59,7 @@ def plot_confusion_matrix(
     cmap=None,
     zmin: int = 1,
     out: Optional[Text] = None,
-) -> None:  # pragma: no cover
+) -> None:    # pragma: no cover
     """Print and plot the confusion matrix for the intent classification.
     Normalization can be applied by setting `normalize=True`."""
     import matplotlib.pyplot as plt
@@ -84,9 +84,9 @@ def plot_confusion_matrix(
 
     if normalize:
         cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
-        logger.info("Normalized confusion matrix: \n{}".format(cm))
+        logger.info(f"Normalized confusion matrix: \n{cm}")
     else:
-        logger.info("Confusion matrix, without normalization: \n{}".format(cm))
+        logger.info(f"Confusion matrix, without normalization: \n{cm}")
 
     thresh = cm.max() / 2.0
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
@@ -137,13 +137,13 @@ def plot_histogram(
 
 def log_evaluation_table(
     report: Text, precision: float, f1: float, accuracy: float
-) -> None:  # pragma: no cover
+) -> None:    # pragma: no cover
     """Log the sklearn evaluation metrics."""
 
-    logger.info("F1-Score:  {}".format(f1))
-    logger.info("Precision: {}".format(precision))
-    logger.info("Accuracy:  {}".format(accuracy))
-    logger.info("Classification report: \n{}".format(report))
+    logger.info(f"F1-Score:  {f1}")
+    logger.info(f"Precision: {precision}")
+    logger.info(f"Accuracy:  {accuracy}")
+    logger.info(f"Classification report: \n{report}")
 
 
 def get_evaluation_metrics(
@@ -191,7 +191,7 @@ def clean_intent_labels(labels: Iterable[Any]) -> List[Text]:
 def drop_intents_below_freq(td: TrainingData, cutoff: int = 5) -> TrainingData:
     """Remove intent groups with less than cutoff instances."""
 
-    logger.debug("Raw data intent examples: {}".format(len(td.intent_examples)))
+    logger.debug(f"Raw data intent examples: {len(td.intent_examples)}")
     keep_examples = [
         ex
         for ex in td.intent_examples
@@ -207,7 +207,7 @@ def collect_nlu_successes(
     """Log messages which result in successful predictions
     and save them to file"""
 
-    successes = [
+    if successes := [
         {
             "text": r.message,
             "intent": r.intent_target,
@@ -218,15 +218,11 @@ def collect_nlu_successes(
         }
         for r in intent_results
         if r.intent_target == r.intent_prediction
-    ]
-
-    if successes:
+    ]:
         utils.write_json_to_file(successes_filename, successes)
-        logger.info(
-            "Model prediction successes saved to {}.".format(successes_filename)
-        )
+        logger.info(f"Model prediction successes saved to {successes_filename}.")
         logger.debug(
-            "\n\nSuccessfully predicted the following intents: \n{}".format(successes)
+            f"\n\nSuccessfully predicted the following intents: \n{successes}"
         )
     else:
         logger.info("Your model made no successful predictions")
@@ -237,7 +233,7 @@ def collect_nlu_errors(
 ) -> None:
     """Log messages which result in wrong predictions and save them to file"""
 
-    errors = [
+    if errors := [
         {
             "text": r.message,
             "intent": r.intent_target,
@@ -248,14 +244,11 @@ def collect_nlu_errors(
         }
         for r in intent_results
         if r.intent_target != r.intent_prediction
-    ]
-
-    if errors:
+    ]:
         utils.write_json_to_file(errors_filename, errors)
-        logger.info("Model prediction errors saved to {}.".format(errors_filename))
+        logger.info(f"Model prediction errors saved to {errors_filename}.")
         logger.debug(
-            "\n\nThese intent examples could not be classified "
-            "correctly: \n{}".format(errors)
+            f"\n\nThese intent examples could not be classified correctly: \n{errors}"
         )
     else:
         logger.info("Your model made no errors")
@@ -287,7 +280,7 @@ def evaluate_intents(
     confmat_filename: Optional[Text],
     intent_hist_filename: Optional[Text],
     output_folder: Optional[Text] = None,
-) -> Dict:  # pragma: no cover
+) -> Dict:    # pragma: no cover
     """Creates a confusion matrix and summary statistics for intent predictions.
     Log samples which could not be classified correctly and save them to file.
     Creates a confidence histogram which is saved to file.
@@ -302,9 +295,7 @@ def evaluate_intents(
     intent_results = remove_empty_intent_examples(intent_results)
 
     logger.info(
-        "Intent Evaluation: Only considering those "
-        "{} examples that have a defined intent out "
-        "of {} examples".format(len(intent_results), num_examples)
+        f"Intent Evaluation: Only considering those {len(intent_results)} examples that have a defined intent out of {num_examples} examples"
     )
 
     target_intents, predicted_intents = _targets_predictions_from(intent_results)
@@ -317,7 +308,7 @@ def evaluate_intents(
         report_filename = os.path.join(report_folder, "intent_report.json")
 
         utils.write_json_to_file(report_filename, report)
-        logger.info("Classification report saved to {}.".format(report_filename))
+        logger.info(f"Classification report saved to {report_filename}.")
 
     else:
         report, precision, f1, accuracy = get_evaluation_metrics(
@@ -406,7 +397,7 @@ def evaluate_entities(
     extractors: Set[Text],
     report_folder: Optional[Text],
     output_folder: Optional[Text] = None,
-) -> Dict:  # pragma: no cover
+) -> Dict:    # pragma: no cover
     """Creates summary statistics for each entity extractor.
     Logs precision, recall, and F1 per entity type for each extractor."""
 
@@ -419,19 +410,18 @@ def evaluate_entities(
     for extractor in extractors:
         merged_predictions = merge_labels(aligned_predictions, extractor)
         merged_predictions = substitute_labels(merged_predictions, "O", "no_entity")
-        logger.info("Evaluation for entity extractor: {} ".format(extractor))
+        logger.info(f"Evaluation for entity extractor: {extractor} ")
         if report_folder:
             report, precision, f1, accuracy = get_evaluation_metrics(
                 merged_targets, merged_predictions, output_dict=True
             )
 
-            report_filename = extractor + "_report.json"
+            report_filename = f"{extractor}_report.json"
             extractor_report_filename = os.path.join(report_folder, report_filename)
 
             utils.write_json_to_file(extractor_report_filename, report)
             logger.info(
-                "Classification report for '{}' saved to '{}'."
-                "".format(extractor, extractor_report_filename)
+                f"Classification report for '{extractor}' saved to '{extractor_report_filename}'."
             )
 
         else:
@@ -486,7 +476,7 @@ def do_entities_overlap(entities: List[Dict]) -> bool:
             next_ent["start"] < curr_ent["end"]
             and next_ent["entity"] != curr_ent["entity"]
         ):
-            logger.warn("Overlapping entity {} with {}".format(curr_ent, next_ent))
+            logger.warn(f"Overlapping entity {curr_ent} with {next_ent}")
             return True
 
     return False
@@ -506,9 +496,7 @@ def find_intersecting_entites(token: Token, entities: List[Dict]) -> List[Dict]:
         elif does_token_cross_borders(token, e):
             candidates.append(e)
             logger.debug(
-                "Token boundary error for token {}({}, {}) "
-                "and entity {}"
-                "".format(token.text, token.offset, token.end, e)
+                f"Token boundary error for token {token.text}({token.offset}, {token.end}) and entity {e}"
             )
     return candidates
 
@@ -520,7 +508,7 @@ def pick_best_entity_fit(token: Token, candidates: List[Dict]) -> Text:
     :return: entity type
     """
 
-    if len(candidates) == 0:
+    if not candidates:
         return "O"
     elif len(candidates) == 1:
         return candidates[0]["entity"]
@@ -541,7 +529,7 @@ def determine_token_labels(
         entity type
     """
 
-    if len(entities) == 0:
+    if not entities:
         return "O"
     if not do_extractors_support_overlap(extractors) and do_entities_overlap(entities):
         raise ValueError("The possible entities should not overlap")
@@ -582,7 +570,7 @@ def align_entity_predictions(
     for t in result.tokens:
         true_token_labels.append(determine_token_labels(t, result.entity_targets, None))
         for extractor, entities in entities_by_extractors.items():
-            extracted = determine_token_labels(t, entities, set([extractor]))
+            extracted = determine_token_labels(t, entities, {extractor})
             extractor_labels[extractor].append(extracted)
 
     return {
@@ -601,11 +589,10 @@ def align_all_entity_predictions(
     :return: list of dictionaries containing the true token labels and token
              labels from the extractors
     """
-    aligned_predictions = []
-    for result in entity_results:
-        aligned_predictions.append(align_entity_predictions(result, extractors))
-
-    return aligned_predictions
+    return [
+        align_entity_predictions(result, extractors)
+        for result in entity_results
+    ]
 
 
 def get_eval_data(
@@ -660,7 +647,7 @@ def get_entity_extractors(interpreter: Interpreter) -> Set[Text]:
     Processors are removed since they do not
     detect the boundaries themselves."""
 
-    extractors = set([c.name for c in interpreter.pipeline if "entities" in c.provides])
+    extractors = {c.name for c in interpreter.pipeline if "entities" in c.provides}
     return extractors - ENTITY_PROCESSORS
 
 
@@ -759,7 +746,7 @@ def generate_folds(
     x = td.intent_examples
     y = [example.get("intent") for example in x]
     for i_fold, (train_index, test_index) in enumerate(skf.split(x, y)):
-        logger.debug("Fold: {}".format(i_fold))
+        logger.debug(f"Fold: {i_fold}")
         train = [x[i] for i in train_index]
         test = [x[i] for i in test_index]
         yield (
@@ -960,9 +947,9 @@ def compare_nlu(
 
     for run in range(runs):
 
-        logger.info("Beginning comparison run {}/{}".format(run + 1, runs))
+        logger.info(f"Beginning comparison run {run + 1}/{runs}")
 
-        run_path = os.path.join(output, "run_{}".format(run + 1))
+        run_path = os.path.join(output, f"run_{run + 1}")
         io_utils.create_path(run_path)
 
         test_path = os.path.join(run_path, TEST_DATA_FILE)
@@ -974,7 +961,7 @@ def compare_nlu(
         training_examples_per_run = []
 
         for percentage in exclusion_percentages:
-            percent_string = "{}%_exclusion".format(percentage)
+            percent_string = f"{percentage}%_exclusion"
 
             _, train = train.train_test_split(percentage / 100)
             training_examples_per_run.append(len(train.training_examples))
@@ -986,9 +973,7 @@ def compare_nlu(
 
             for nlu_config, model_name in zip(configs, model_names):
                 logger.info(
-                    "Evaluating configuration '{}' with {} training data.".format(
-                        model_name, percent_string
-                    )
+                    f"Evaluating configuration '{model_name}' with {percent_string} training data."
                 )
 
                 try:
@@ -999,19 +984,13 @@ def compare_nlu(
                         fixed_model_name=model_name,
                     )
                 except Exception as e:
-                    logger.warning(
-                        "Training model '{}' failed. Error: {}".format(
-                            model_name, str(e)
-                        )
-                    )
+                    logger.warning(f"Training model '{model_name}' failed. Error: {str(e)}")
                     f_score_results[model_name][run].append(0.0)
                     continue
 
                 model_path = os.path.join(get_model(model_path), "nlu")
 
-                report_path = os.path.join(
-                    model_output_path, "{}_report".format(model_name)
-                )
+                report_path = os.path.join(model_output_path, f"{model_name}_report")
                 errors_path = os.path.join(report_path, "errors.json")
                 result = run_evaluation(
                     test_path, model_path, report=report_path, errors=errors_path
@@ -1087,7 +1066,7 @@ def return_entity_results(results: EntityMetrics, dataset_name: Text) -> None:
                     test/train
     """
     for extractor, result in results.items():
-        logger.info("Entity extractor: {}".format(extractor))
+        logger.info(f"Entity extractor: {extractor}")
         return_results(result, dataset_name)
 
 

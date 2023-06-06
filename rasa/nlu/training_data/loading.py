@@ -33,7 +33,7 @@ MARKDOWN = "md"
 UNK = "unk"
 DIALOGFLOW_RELEVANT = {DIALOGFLOW_ENTITIES, DIALOGFLOW_INTENT}
 
-_markdown_section_markers = ["## {}:".format(s) for s in markdown.available_sections]
+_markdown_section_markers = [f"## {s}:" for s in markdown.available_sections]
 _json_format_heuristics = {
     WIT: lambda js, fn: "data" in js and isinstance(js.get("data"), list),
     LUIS: lambda js, fn: "luis_schema_version" in js,
@@ -54,12 +54,12 @@ def load_data(resource_name: Text, language: Optional[Text] = "en") -> "Training
     from rasa.nlu.training_data import TrainingData
 
     if not os.path.exists(resource_name):
-        raise ValueError("File '{}' does not exist.".format(resource_name))
+        raise ValueError(f"File '{resource_name}' does not exist.")
 
     files = io_utils.list_files(resource_name)
     data_sets = [_load(f, language) for f in files]
     data_sets = [ds for ds in data_sets if ds]
-    if len(data_sets) == 0:
+    if not data_sets:
         training_data = TrainingData()
     elif len(data_sets) == 1:
         training_data = data_sets[0]
@@ -80,11 +80,9 @@ async def load_data_from_endpoint(
         response = await data_endpoint.request("get")
         response.raise_for_status()
         temp_data_file = io_utils.create_temporary_file(response.content, mode="w+b")
-        training_data = _load(temp_data_file, language)
-
-        return training_data
+        return _load(temp_data_file, language)
     except Exception as e:
-        logger.warning("Could not retrieve training data from URL:\n{}".format(e))
+        logger.warning(f"Could not retrieve training data from URL:\n{e}")
 
 
 def _reader_factory(fformat: Text) -> Optional["TrainingDataReader"]:
@@ -116,12 +114,10 @@ def _load(filename: Text, language: Optional[Text] = "en") -> Optional["Training
 
     fformat = guess_format(filename)
     if fformat == UNK:
-        raise ValueError("Unknown data format for file '{}'.".format(filename))
+        raise ValueError(f"Unknown data format for file '{filename}'.")
 
-    logger.debug("Training data format of '{}' is '{}'.".format(filename, fformat))
-    reader = _reader_factory(fformat)
-
-    if reader:
+    logger.debug(f"Training data format of '{filename}' is '{fformat}'.")
+    if reader := _reader_factory(fformat):
         return reader.read(filename, language=language, fformat=fformat)
     else:
         return None
@@ -143,7 +139,7 @@ def guess_format(filename: Text) -> Text:
         content = io_utils.read_file(filename)
         js = json.loads(content)
     except ValueError:
-        if any([marker in content for marker in _markdown_section_markers]):
+        if any(marker in content for marker in _markdown_section_markers):
             guess = MARKDOWN
     else:
         for fformat, format_heuristic in _json_format_heuristics.items():

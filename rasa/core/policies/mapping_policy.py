@@ -48,10 +48,8 @@ class MappingPolicy(Policy):
             isinstance(p, cls) for p in ensemble.policies
         )
         has_triggers_in_domain = any(
-            [
-                "triggers" in properties
-                for intent, properties in domain.intent_properties.items()
-            ]
+            "triggers" in properties
+            for intent, properties in domain.intent_properties.items()
         )
         if has_triggers_in_domain and not has_mapping_policy:
             raise InvalidDomain(
@@ -93,47 +91,35 @@ class MappingPolicy(Policy):
             if action:
                 idx = domain.index_for_action(action)
                 if idx is None:
-                    logger.warning(
-                        "MappingPolicy tried to predict unknown "
-                        "action '{}'.".format(action)
-                    )
+                    logger.warning(f"MappingPolicy tried to predict unknown action '{action}'.")
                 else:
                     prediction[idx] = 1
 
             if any(prediction):
                 logger.debug(
-                    "The predicted intent '{}' is mapped to "
-                    " action '{}' in the domain."
-                    "".format(intent, action)
+                    f"The predicted intent '{intent}' is mapped to  action '{action}' in the domain."
                 )
         elif tracker.latest_action_name == action and action is not None:
             latest_action = tracker.get_last_event_for(ActionExecuted)
             assert latest_action.action_name == action
             if latest_action.policy == type(
                 self
-            ).__name__ or latest_action.policy.endswith("_" + type(self).__name__):
+            ).__name__ or latest_action.policy.endswith(f"_{type(self).__name__}"):
                 # this ensures that we only predict listen, if we predicted
                 # the mapped action
                 logger.debug(
-                    "The mapped action, '{}', for this intent, '{}', was "
-                    "executed last so MappingPolicy is returning to "
-                    "action_listen.".format(action, intent)
+                    f"The mapped action, '{action}', for this intent, '{intent}', was executed last so MappingPolicy is returning to action_listen."
                 )
 
                 idx = domain.index_for_action(ACTION_LISTEN_NAME)
                 prediction[idx] = 1
             else:
                 logger.debug(
-                    "The mapped action, '{}', for this intent, '{}', was "
-                    "executed last, but it was predicted by another policy, '{}', so MappingPolicy is not"
-                    "predicting any action.".format(
-                        action, intent, latest_action.policy
-                    )
+                    f"The mapped action, '{action}', for this intent, '{intent}', was executed last, but it was predicted by another policy, '{latest_action.policy}', so MappingPolicy is notpredicting any action."
                 )
         else:
             logger.debug(
-                "There is no mapped action for the predicted intent, "
-                "'{}'.".format(intent)
+                f"There is no mapped action for the predicted intent, '{intent}'."
             )
         return prediction
 
